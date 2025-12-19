@@ -35,7 +35,7 @@ st.markdown("""
 with st.sidebar:
     st.title("⚙️ 助手设置")
 
-    default_key = "XXXX"  # 替换为你的真实 Key 或留空
+    default_key = ""  # 替换为你的真实 Key 或留空
     api_key = st.text_input(
         "通义千问 API Key",
         value=default_key,
