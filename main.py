@@ -294,12 +294,12 @@ def get_file_id(uploaded_file) -> str:
     h = hashlib.md5(data).hexdigest()
     return f"{uploaded_file.name}_{len(data)}_{h}"
 
+import base64
 import streamlit.components.v1 as components
 
 def display_pdf(uploaded_file, height=800):
     """
-    ✅ 方案2：Blob URL 方式嵌入 PDF（更不容易被浏览器/平台拦截）
-    替代 data:application/pdf;base64 的 iframe
+    ✅ 终极方案：pdf.js 渲染到 canvas（不依赖浏览器 PDF 插件，Edge 不会拦）
     """
     if uploaded_file is None:
         return
@@ -307,28 +307,80 @@ def display_pdf(uploaded_file, height=800):
     b64 = base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
     html = f"""
-    <iframe id="pdfFrame" width="100%" height="{height}"
-        style="border:1px solid #ddd; border-radius:10px;">
-    </iframe>
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
+      <button id="prev">⬅️ Prev</button>
+      <span>Page: <span id="page_num"></span> / <span id="page_count"></span></span>
+      <button id="next">Next ➡️</button>
+    </div>
+    <canvas id="the-canvas" style="width:100%; border:1px solid #ddd; border-radius:10px;"></canvas>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
       const b64 = "{b64}";
-      const byteCharacters = atob(b64);
-      const byteNumbers = new Array(byteCharacters.length);
+      const raw = atob(b64);
+      const uint8Array = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) uint8Array[i] = raw.charCodeAt(i);
 
-      for (let i = 0; i < byteCharacters.length; i++) {{
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      const pdfjsLib = window['pdfjs-dist/build/pdf'];
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+      let pdfDoc = null, pageNum = 1, pageRendering = false, pageNumPending = null;
+      const canvas = document.getElementById('the-canvas');
+      const ctx = canvas.getContext('2d');
+
+      function renderPage(num) {{
+        pageRendering = true;
+        pdfDoc.getPage(num).then(function(page) {{
+          const viewport = page.getViewport({{ scale: 1.5 }});
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+
+          const renderContext = {{ canvasContext: ctx, viewport: viewport }};
+          const renderTask = page.render(renderContext);
+
+          renderTask.promise.then(function() {{
+            pageRendering = false;
+            document.getElementById('page_num').textContent = pageNum;
+
+            if (pageNumPending !== null) {{
+              renderPage(pageNumPending);
+              pageNumPending = null;
+            }}
+          }});
+        }});
       }}
 
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], {{ type: "application/pdf" }});
-      const blobUrl = URL.createObjectURL(blob);
+      function queueRenderPage(num) {{
+        if (pageRendering) {{
+          pageNumPending = num;
+        }} else {{
+          renderPage(num);
+        }}
+      }}
 
-      document.getElementById("pdfFrame").src = blobUrl;
+      document.getElementById('prev').addEventListener('click', function() {{
+        if (pageNum <= 1) return;
+        pageNum--;
+        queueRenderPage(pageNum);
+      }});
+
+      document.getElementById('next').addEventListener('click', function() {{
+        if (pageNum >= pdfDoc.numPages) return;
+        pageNum++;
+        queueRenderPage(pageNum);
+      }});
+
+      pdfjsLib.getDocument({{ data: uint8Array }}).promise.then(function(pdfDoc_) {{
+        pdfDoc = pdfDoc_;
+        document.getElementById('page_count').textContent = pdfDoc.numPages;
+        document.getElementById('page_num').textContent = pageNum;
+        renderPage(pageNum);
+      }});
     </script>
     """
 
-    components.html(html, height=height + 30, scrolling=True)
+    components.html(html, height=height, scrolling=True)
 
 
 # 上下文管理器：临时禁用代理 (给 DashScope 用)
@@ -786,6 +838,13 @@ if st.session_state.raw_text:
             
             # Panel A: PDF 原文
             with left_tab1:
+                # 添加下载按钮作为兜底
+                st.download_button(
+                    "📥 下载 PDF",
+                    data=uploaded_file.getvalue(),
+                    file_name=uploaded_file.name,
+                    mime="application/pdf"
+                )
                 display_pdf(uploaded_file)
             
             # Panel B: 知识库 (自动汇集提取出的信息)
@@ -910,6 +969,13 @@ if st.session_state.raw_text:
             # 如果开关开启 且 文件存在，则显示 PDF
             if source_mode and uploaded_file:
                 st.markdown("**📖 论文原文 (保留排版，请直接划词复制)**")
+                # 添加下载按钮作为兜底
+                st.download_button(
+                    "📥 下载 PDF",
+                    data=uploaded_file.getvalue(),
+                    file_name=uploaded_file.name,
+                    mime="application/pdf"
+                )
                 # 使用Blob URL方式嵌入PDF，避免浏览器拦截
                 display_pdf(uploaded_file, height=700)
                 
