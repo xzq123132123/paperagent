@@ -11,7 +11,7 @@ import io  # <--- 新增
 import hashlib  # <--- 新增
 from fpdf import FPDF  # <--- 新增
 from datetime import datetime
-
+from streamlit_mermaid import st_mermaid # <--- 新增
 
 # --- 页面基础配置 ---
 st.set_page_config(
@@ -295,15 +295,41 @@ def get_file_id(uploaded_file) -> str:
     h = hashlib.md5(data).hexdigest()
     return f"{uploaded_file.name}_{len(data)}_{h}"
 
-def display_pdf(uploaded_file):
-    """将 PDF 文件嵌入到 Streamlit 页面中"""
-    # 读取文件二进制内容
-    bytes_data = uploaded_file.getvalue()
-    # 转为 base64 编码
-    base64_pdf = base64.b64encode(bytes_data).decode('utf-8')
-    # 嵌入 PDF 查看器
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
+import streamlit.components.v1 as components
+
+def display_pdf(uploaded_file, height=800):
+    """
+    ✅ 方案2：Blob URL 方式嵌入 PDF（更不容易被浏览器/平台拦截）
+    替代 data:application/pdf;base64 的 iframe
+    """
+    if uploaded_file is None:
+        return
+
+    b64 = base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
+
+    html = f"""
+    <iframe id="pdfFrame" width="100%" height="{height}"
+        style="border:1px solid #ddd; border-radius:10px;">
+    </iframe>
+
+    <script>
+      const b64 = "{b64}";
+      const byteCharacters = atob(b64);
+      const byteNumbers = new Array(byteCharacters.length);
+
+      for (let i = 0; i < byteCharacters.length; i++) {{
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }}
+
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], {{ type: "application/pdf" }});
+      const blobUrl = URL.createObjectURL(blob);
+
+      document.getElementById("pdfFrame").src = blobUrl;
+    </script>
+    """
+
+    components.html(html, height=height + 30, scrolling=True)
 
 
 # 上下文管理器：临时禁用代理 (给 DashScope 用)
