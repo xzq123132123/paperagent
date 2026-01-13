@@ -11,7 +11,7 @@ import io  # <--- 新增
 import hashlib  # <--- 新增
 from fpdf import FPDF  # <--- 新增
 from datetime import datetime
-from streamlit_mermaid import st_mermaid # <--- 新增
+
 
 # --- 页面基础配置 ---
 st.set_page_config(
