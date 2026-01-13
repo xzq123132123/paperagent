@@ -7,7 +7,11 @@ from dashscope import Generation
 from http import HTTPStatus
 import os
 import time
+import io  # <--- 新增
+import hashlib  # <--- 新增
+from fpdf import FPDF  # <--- 新增
 from datetime import datetime
+from streamlit_mermaid import st_mermaid # <--- 新增
 
 # --- 页面基础配置 ---
 st.set_page_config(
@@ -109,53 +113,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 侧边栏：配置区 ---
-with st.sidebar:
-    st.title("⚙️ 助手设置")
-
-    default_key = ""  # 替换为你的真实 Key 或留空
-    api_key = st.text_input(
-        "通义千问 API Key",
-        value=default_key,
-        type="password",
-        help="阿里云百炼控制台获取"
-    )
-
-    st.markdown("---")
-
-    st.subheader("🎯 身份设定")
-    reader_level = st.radio(
-        "选择解释通俗度：",
-        ("完全新手 (生活比喻)", "初级研究员 (学术+直观)", "专家 (深度总结)")
-    )
-
-    st.markdown("---")
-    st.info("💡 **功能导航**：\n1. **概览**：摘要与引用生成\n2. **阅读**：全文对照与问答\n3. **润色**：中英互译与优化")
-
-    # --- 新增：导出功能 ---
-    st.markdown("---")
-    st.subheader("💾 成果导出")
-    if st.button("生成研读笔记 (Markdown)"):
-        if "chat_history" in st.session_state and st.session_state.chat_history:
-            # 构建笔记内容
-            note_content = f"# 论文研读笔记\n日期: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-            if "paper_summary" in st.session_state and st.session_state.paper_summary:
-                note_content += f"## 1. 论文概览\n{st.session_state.paper_summary}\n\n"
-            note_content += "## 2. 重点问答记录\n"
-            for msg in st.session_state.chat_history:
-                role = "AI 导师" if msg['role'] == 'assistant' else "我"
-                note_content += f"**{role}**: {msg['content']}\n\n"
-
-            st.download_button(
-                label="📥 点击下载笔记",
-                data=note_content,
-                file_name="paper_study_note.md",
-                mime="text/markdown"
-            )
-        else:
-            st.warning("暂无对话记录可导出")
-
-
 # --- 核心工具函数 ---
 
 @st.cache_data
@@ -171,6 +128,172 @@ def extract_text_from_pdf(uploaded_file):
     except Exception as e:
         st.error(f"PDF 读取失败: {e}")
         return None
+
+def generate_pdf_content(summary, chat_history):
+    """生成支持中文的 PDF 二进制流"""
+    # --- 关键：先注册中文字体 ---
+    # 必须下载 SimHei.ttf 放在同级目录，或者使用系统路径
+    import os
+    font_path = "SimHei.ttf" # 优先找项目目录下的字体
+    
+    # 如果项目里没有，尝试找 Windows 系统字体
+    if not os.path.exists(font_path):
+        possible_paths = [
+            r"C:\Windows\Fonts\simhei.ttf",
+            r"C:\Windows\Fonts\msyh.ttc"
+        ]
+        for p in possible_paths:
+            if os.path.exists(p):
+                font_path = p
+                break
+    
+    # 定义 PDF 类，在初始化时注册字体
+    class PDF(FPDF):
+        def __init__(self):
+            super().__init__()
+            self.font_registered = False
+            # 尝试注册中文字体
+            try:
+                # 注册字体，这步是显示中文的关键
+                self.add_font('SimHei', '', font_path)
+                self.font_registered = True
+            except Exception as e:
+                # 如果找不到字体，回退到默认（中文会乱码，但不会报错崩溃）
+                print(f"字体加载失败: {e}")
+        
+        def header(self):
+            # 简单的页眉
+            try:
+                if self.font_registered:
+                    self.set_font('SimHei', '', 10)
+                else:
+                    self.set_font('Arial', '', 10)
+            except:
+                self.set_font('Arial', '', 10)
+            # 确保使用英文标题避免中文编码问题
+            self.cell(0, 10, 'PaperAgent Pro - Study Notes', ln=True, align='R')
+            self.ln(5)
+    
+    # 创建 PDF 实例
+    pdf = PDF()
+    
+    # 添加页面
+    pdf.add_page()
+    
+    # 设置默认字体
+    if pdf.font_registered:
+        pdf.set_font('SimHei', '', 12)
+    else:
+        pdf.set_font('Arial', '', 12)
+        pdf.cell(0, 10, "Error: Chinese font not found. Please install SimHei.ttf", ln=True)
+
+    # 1. 写入标题
+    try:
+        if pdf.font_registered:
+            pdf.set_font('SimHei', '', 16)
+            pdf.cell(0, 10, '论文研读笔记', ln=True, align='C')
+        else:
+            pdf.set_font('Arial', '', 16)
+            pdf.cell(0, 10, 'Study Notes', ln=True, align='C')
+        pdf.ln(10)
+    except Exception as e:
+        print(f"标题写入失败: {e}")
+        pdf.set_font('Arial', '', 16)
+        pdf.cell(0, 10, 'Study Notes', ln=True, align='C')
+        pdf.ln(10)
+
+    # 2. 写入时间
+    try:
+        if pdf.font_registered:
+            pdf.set_font('SimHei', '', 10)
+            pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
+        else:
+            pdf.set_font('Arial', '', 10)
+            pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
+        pdf.ln(5)
+    except Exception as e:
+        print(f"时间写入失败: {e}")
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
+        pdf.ln(5)
+
+    # 3. 写入概览
+    if summary:
+        try:
+            if pdf.font_registered:
+                pdf.set_font('SimHei', '', 14)
+                pdf.cell(0, 10, '一、论文概览', ln=True)
+                pdf.set_font('SimHei', '', 11)
+            else:
+                pdf.set_font('Arial', '', 14)
+                pdf.cell(0, 10, '1. Paper Overview', ln=True)
+                pdf.set_font('Arial', '', 11)
+            # multi_cell 用于自动换行
+            pdf.multi_cell(0, 8, summary)
+            pdf.ln(10)
+        except Exception as e:
+            print(f"概览写入失败: {e}")
+            pdf.set_font('Arial', '', 11)
+            pdf.multi_cell(0, 8, summary)
+            pdf.ln(10)
+
+    # 4. 写入问答记录
+    if chat_history:
+        try:
+            if pdf.font_registered:
+                pdf.set_font('SimHei', '', 14)
+                pdf.cell(0, 10, '二、重点问答记录', ln=True)
+            else:
+                pdf.set_font('Arial', '', 14)
+                pdf.cell(0, 10, '2. Key Q&A Records', ln=True)
+            pdf.ln(5)
+            
+            for msg in chat_history:
+                role = "【AI 导师】" if msg['role'] == 'assistant' else "【我】"
+                if not pdf.font_registered:
+                    role = "[AI Tutor]" if msg['role'] == 'assistant' else "[Me]"
+                content = msg['content']
+                
+                # 角色名
+                try:
+                    if pdf.font_registered:
+                        pdf.set_font('SimHei', '', 11)
+                    else:
+                        pdf.set_font('Arial', '', 11)
+                    pdf.cell(0, 8, role, ln=True)
+                except Exception as e:
+                    print(f"角色名写入失败: {e}")
+                    pdf.set_font('Arial', '', 11)
+                    pdf.cell(0, 8, "[User]" if msg['role'] != 'assistant' else "[AI]", ln=True)
+                
+                # 内容 (缩进一点)
+                try:
+                    pdf.set_x(15)
+                    if pdf.font_registered:
+                        pdf.set_font('SimHei', '', 10)
+                    else:
+                        pdf.set_font('Arial', '', 10)
+                    pdf.multi_cell(0, 6, content)
+                    pdf.ln(3)
+                except Exception as e:
+                    print(f"内容写入失败: {e}")
+                    pdf.set_x(15)
+                    pdf.set_font('Arial', '', 10)
+                    pdf.multi_cell(0, 6, content[:500])  # 只写入部分内容避免崩溃
+                    pdf.ln(3)
+        except Exception as e:
+            print(f"问答记录写入失败: {e}")
+
+    # 返回二进制数据
+    return bytes(pdf.output())
+
+def get_file_id(uploaded_file) -> str:
+    """
+    用文件名 + 文件大小 + 内容hash 生成稳定指纹，确保换文件必定触发重解析
+    """
+    data = uploaded_file.getvalue()
+    h = hashlib.md5(data).hexdigest()
+    return f"{uploaded_file.name}_{len(data)}_{h}"
 
 def display_pdf(uploaded_file):
     """将 PDF 文件嵌入到 Streamlit 页面中"""
@@ -326,6 +449,212 @@ def generate_map_reduce_summary(full_text):
     status_text.empty()
     return final_result
 
+# -------- 1) 清洗 Mermaid：去围栏、去杂话、只保留主图 --------
+def wrap_text(text, max_len=12):
+    """自动为长文本添加换行符"""
+    if not text:
+        return text
+    # 按最大长度分割文本
+    lines = []
+    current_line = ""
+    for char in text:
+        current_line += char
+        if len(current_line) >= max_len:
+            lines.append(current_line)
+            current_line = ""
+    if current_line:
+        lines.append(current_line)
+    return "<br/>".join(lines)
+
+def clean_mermaid(text: str) -> str:
+    if not text:
+        return ""
+
+    text = text.strip()
+
+    # A. 把 ```mermaid ... ``` 围栏剥掉（LLM最常见“夹带”）
+    import re
+    m = re.search(r"```(?:mermaid)?\s*(.*?)```", text, flags=re.S)
+    if m:
+        text = m.group(1).strip()
+
+    # B. 从第一个 Mermaid 图类型关键字开始截断，去掉前后说明
+    m2 = re.search(
+        r"(?s)\b(flowchart|graph|sequenceDiagram|stateDiagram|classDiagram|erDiagram|journey|gantt)\b.*",
+        text
+    )
+    if m2:
+        text = m2.group(0).strip()
+
+    # C. 常见隐藏字符清理（有时会导致语法问题）
+    text = text.replace("\u200b", "").replace("\ufeff", "")  # 零宽字符/BOM
+
+    # D. 处理长文本节点，添加换行符
+    # 查找所有节点定义：ID["文本"]
+    def replace_node(match):
+        id_part = match.group(1)
+        text_part = match.group(2)
+        # 检查是否已经包含换行符
+        if "<br/>" not in text_part:
+            # 如果没有换行符，自动添加
+            wrapped_text = wrap_text(text_part)
+            return f'{id_part}["{wrapped_text}"]'
+        return match.group(0)
+    
+    # 匹配节点定义：ID["文本"]
+    text = re.sub(r'(\w+)\["([^"]+)"\]', replace_node, text)
+
+    return text
+
+
+# -------- 2) Mermaid 渲染（纯HTML注入，兼容 mermaid@10）--------
+def render_mermaid(mermaid_code: str, height: int = 620):
+    mermaid_code = clean_mermaid(mermaid_code)
+
+    html = f"""
+    <div class="mermaid">
+    {mermaid_code}
+    </div>
+
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({{ startOnLoad: true, securityLevel: 'loose' }});
+    </script>
+    """
+
+    import streamlit.components.v1 as components
+    components.html(html, height=height, scrolling=True)
+
+
+# -------- 3) 让 LLM “只输出纯 Mermaid”，避免语法炸点 --------
+def build_mermaid_prompt(full_text: str) -> str:
+    return f"""
+请基于全文生成 Mermaid 逻辑结构导图，严格遵循学术规范。
+
+【必须遵守】
+1) 输出必须以 flowchart TD 开头，只输出 Mermaid 代码本体。
+2) 每个节点必须写成：ID["显示文字"]（显示文字允许空格和中文）。
+   - ID 只能用 A1,A2,B1... 这种简短ID，禁止用驼峰词当ID。
+3) 逻辑关系表示：
+   - "-->"：主逻辑关系（论文真正给出的内容）
+   - "-.->"：说明/注释/非主逻辑（文献未明确给出的内容）
+4) 内容处理原则：
+   - 论文真正给出的结论 → 画在主逻辑链
+   - 文献未明确给出的结论 → 不作为主结论节点
+   - 如需说明信息缺失，用虚线说明节点，而不是"结论 → 未给出信息"
+5) 节点文本换行要求：
+   - 所有较长节点文本，必须在合适位置插入 <br/> 强制换行
+   - 不改语义，只做视觉换行
+   - 每行建议 10～14 个中文字符
+6) 必须提取论文中的具体内容填充到节点中：
+   - 背景：写出具体要解决什么难题？
+   - 方法：写出具体的算法名称、模块名称（如 "HGSTA算法", "混合策略"）。
+   - 实验：写出具体的提升数值（如 "锌耗降低 46kg"）。
+7) 示例结构（供参考）：
+   flowchart TD
+   A["背景"]
+   A --> B["区间数据相比点数据<br/>包含更多信息"]
+   A --> C["传统方法难以同时刻画<br/>区间范围和水平特征"]
+   
+   D["方法"]
+   D --> D1["提出区间自回归<br/>(ACI) 模型"]
+   D --> D2["采用最小距离估计<br/>进行参数估计"]
+   
+   E["实验结果"]
+   E --> F["结论"]
+   
+   F -.-> N["部分结论在文献中<br/>未明确报告"]
+
+【论文内容】
+{full_text}
+""".strip()
+
+def generate_mindmap_code(text):
+    """让 AI 生成 Mermaid 思维导图代码 (稳定版)"""
+    prompt = build_mermaid_prompt(text[:8000])  # 建议截断，避免太长
+    return call_qwen(prompt)
+
+# --- 侧边栏：配置区 ---
+with st.sidebar:
+    st.title("⚙️ 助手设置")
+
+    default_key = ""  # 替换为你的真实 Key 或留空
+    api_key = st.text_input(
+        "通义千问 API Key",
+        value=default_key,
+        type="password",
+        help="阿里云百炼控制台获取"
+    )
+
+    st.markdown("---")
+
+    st.subheader("🎯 身份设定")
+    reader_level = st.radio(
+        "选择解释通俗度：",
+        ("完全新手 (生活比喻)", "初级研究员 (学术+直观)", "专家 (深度总结)")
+    )
+
+    st.markdown("---")
+    st.info("💡 **功能导航**：\n1. **概览**：使用滑窗+归纳策略生成深度全文分析，包含详细摘要和BibTeX引用\n2. **阅读**：左侧嵌入PDF原文（保留排版），右侧AI导师实时问答，智能知识库自动沉淀关键信息\n3. **润色**：智能翻译（中⇌英）、学术润色、语法纠错，支持PDF原文对照")
+
+    # --- 新增：导出功能 (支持 Markdown 和 PDF) ---
+    st.markdown("---")
+    st.subheader("💾 成果导出")
+    
+    # 检查是否有内容可导出
+    has_history = "chat_history" in st.session_state and st.session_state.chat_history
+    has_summary = "paper_summary" in st.session_state and st.session_state.paper_summary
+    
+    if has_history or has_summary:
+        # 1. Markdown 导出 (保留原有功能)
+        md_content = f"# 论文研读笔记\n日期: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+        if has_summary:
+            md_content += f"## 1. 论文概览\n{st.session_state.paper_summary}\n\n"
+        if has_history:
+            md_content += "## 2. 重点问答记录\n"
+            for msg in st.session_state.chat_history:
+                role = "AI 导师" if msg['role'] == 'assistant' else "我"
+                md_content += f"**{role}**: {msg['content']}\n\n"
+        
+        col_md, col_pdf = st.columns(2)
+        
+        with col_md:
+            st.download_button(
+                label="⬇️ Markdown",
+                data=md_content,
+                file_name="study_notes.md",
+                mime="text/markdown",
+                use_container_width=True
+            )
+
+        # 2. PDF 导出 (新增功能)
+        with col_pdf:
+            # 只有点击时才生成PDF，节省资源
+            if st.button("⬇️ PDF", key="btn_gen_pdf", use_container_width=True):
+                with st.spinner("正在生成 PDF..."):
+                    pdf_data = generate_pdf_content(
+                        st.session_state.paper_summary,
+                        st.session_state.chat_history
+                    )
+                    # 由于 st.button 点击后会刷新，这里需要利用 session_state 或者直接立即显示下载链接
+                    # 但为了简化交互，我们直接在这里显示一个下载按钮（嵌套逻辑在Streamlit中虽然不推荐但可用，或者使用回调）
+                    # 最好的方式是把 PDF 生成逻辑封装，直接用 download_button 调用函数(但fpdf生成较慢，会卡顿)
+                    # 这里采用“生成后显示下载链接”的方式：
+                    st.session_state.tmp_pdf_data = pdf_data
+
+            # 如果已经生成了 PDF 数据，显示下载按钮
+            if "tmp_pdf_data" in st.session_state:
+                st.download_button(
+                    label="点击保存 PDF",
+                    data=st.session_state.tmp_pdf_data,
+                    file_name="study_notes.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="btn_download_pdf" # 唯一的 key
+                )
+    else:
+        st.caption("暂无笔记内容可导出")
+
 
 # --- 主界面逻辑 ---
 st.title("📄 PaperAgent Pro: 多模态论文助读")
@@ -335,12 +664,26 @@ if "chat_history" not in st.session_state: st.session_state.chat_history = []
 if "raw_text" not in st.session_state: st.session_state.raw_text = ""
 if "analysis_result" not in st.session_state: st.session_state.analysis_result = None
 if "paper_summary" not in st.session_state: st.session_state.paper_summary = None 
+if "current_file_id" not in st.session_state: st.session_state.current_file_id = None
 
 # 文件上传
 uploaded_file = st.file_uploader("📂 上传论文 (PDF)", type="pdf")
 
 if uploaded_file:
-    # 仅当文件变化时重新读取
+    new_file_id = get_file_id(uploaded_file)
+
+    # ✅ 文件变了：清空旧状态，强制重解析
+    if st.session_state.current_file_id != new_file_id:
+        st.session_state.current_file_id = new_file_id
+
+        # 清空与论文相关的所有缓存/结果
+        st.session_state.raw_text = ""
+        st.session_state.paper_summary = None
+        st.session_state.analysis_result = None
+        st.session_state.chat_history = []
+        st.session_state.polished_result = ""  # 可选：清空润色结果
+
+    # ✅ 需要解析时再解析
     if st.session_state.raw_text == "":
         with st.spinner("正在解析 PDF 全文..."):
             st.session_state.raw_text = extract_text_from_pdf(uploaded_file)
@@ -351,41 +694,72 @@ if st.session_state.raw_text:
     # 将 .info-card 应用于核心信息卡（原代码此处没有使用 class，现在加上以适配新样式）
     tab0, tab1, tab2 = st.tabs(["🏠 智能概览", "📖 深度阅读", "✍️ 学术润色"])
 
-    # === 功能 0: 智能概览 (Map-Reduce 升级版) ===
+    # === 功能 0: 智能概览 (含思维导图) ===
     with tab0:
         st.markdown('<div class="info-card">', unsafe_allow_html=True)
         st.subheader("📑 论文核心信息卡")
 
-        if st.session_state.paper_summary is None:
-            if st.button("🚀 生成深度概览 (全篇分析)"):
-                with st.spinner("AI 正在使用滑窗策略阅读全篇论文，这可能需要 30-60 秒..."):
-                    # 使用新的 Map-Reduce 函数
+        # 使用列布局放置两个大按钮
+        c_act1, c_act2 = st.columns([1, 1])
+        
+        with c_act1:
+            if st.button("🚀 生成深度概览 (Text)", use_container_width=True):
+                with st.spinner("AI 正在使用滑窗策略阅读全篇论文..."):
                     summary = generate_map_reduce_summary(st.session_state.raw_text)
                     st.session_state.paper_summary = summary
                     
-                    # 额外单独生成 BibTeX (因为 summary prompt 变复杂了，分开生成更稳定)
-                    bib_prompt = f"请根据论文前2000字，直接生成 BibTeX 格式。无需其他废话。\n内容：{st.session_state.raw_text[:2000]}"
+                    # 额外生成 BibTeX
+                    bib_prompt = f"请根据论文前2000字，直接生成 BibTeX 格式。\n内容：{st.session_state.raw_text[:2000]}"
                     bib_res = call_qwen(bib_prompt)
                     if bib_res:
                         st.session_state.paper_summary += f"\n\n## BibTeX\n```bibtex\n{bib_res}\n```"
 
+        with c_act2:
+            if st.button("🗺️ 生成逻辑导图 (Graph)", use_container_width=True):
+                with st.spinner("AI 正在梳理逻辑结构..."):
+                    if not st.session_state.raw_text:
+                        st.warning("请先上传并解析PDF")
+                    else:
+                        raw_code = generate_mindmap_code(st.session_state.raw_text)
+                        clean_code = clean_mermaid(raw_code)
+                        
+                        # 保存结果到会话状态
+                        st.session_state.mindmap_raw = raw_code
+                        st.session_state.mindmap_code = clean_code
+
+        st.divider()
+
+        # 展示区
+        # 1. 展示导图
+        if "mindmap_code" in st.session_state and st.session_state.mindmap_code:
+            st.markdown("### 🧠 逻辑结构导图")
+            
+            # ✅ 渲染
+            try:
+                render_mermaid(st.session_state.mindmap_code, height=650)
+            except Exception as e:
+                st.error(f"Mermaid 渲染失败：{e}")
+            st.divider()
+
+        # 2. 展示文字概览 (如果已生成)
         if st.session_state.paper_summary:
+            st.markdown("### 📝 深度概览")
             st.markdown(st.session_state.paper_summary)
             st.info("💡 提示：你可以直接复制上方的 BibTeX 用于论文写作。")
         
-        st.markdown('</div>', unsafe_allow_html=True) # 闭合卡片 div
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # === 功能 1: 深度阅读 (左侧多功能面板版) ===
+    # === 功能 1: 深度阅读 (精简版) ===
     with tab1:
-        # 调整布局比例：左侧信息区 (55%)，右侧交互区 (45%)
+        # 布局比例：左侧信息区 (55%)，右侧交互区 (45%)
         col1, col2 = st.columns([5.5, 4.5])
         
         # --- 左侧：多功能信息面板 ---
         with col1:
-            # 定义三个子面板：原文、知识库、纯文本
-            left_tab1, left_tab2, left_tab3 = st.tabs(["📄 PDF 原文", "🧠 知识库 (术语/数据)", "📝 解析文本"])
+            # 修改点：只保留两个 Tab，删除了“解析文本”
+            left_tab1, left_tab2 = st.tabs(["📄 PDF 原文", "🧠 知识库 (术语/数据)"])
             
-            #Panel A: PDF 原文
+            # Panel A: PDF 原文
             with left_tab1:
                 display_pdf(uploaded_file)
             
@@ -394,14 +768,14 @@ if st.session_state.raw_text:
                 st.markdown('<div class="info-card">', unsafe_allow_html=True)
                 has_content = False
                 
-                # 1. 展示概览 (如果有)
+                # 1. 展示概览
                 if st.session_state.paper_summary:
                     st.markdown("### 📑 论文概览")
                     st.markdown(st.session_state.paper_summary)
                     st.divider()
                     has_content = True
                 
-                # 2. 展示术语表 (如果有)
+                # 2. 展示术语表
                 if st.session_state.analysis_result:
                     st.markdown("### 📚 核心术语表")
                     st.markdown(st.session_state.analysis_result)
@@ -410,21 +784,15 @@ if st.session_state.raw_text:
                 
                 # 3. 提示信息
                 if not has_content:
-                    st.info("👈这里是空白的。请在右侧点击 **'提取核心术语'** 或在概览页生成 **'摘要'**，结果将自动显示在这里。")
+                    st.info("👈 这里是智能知识库。\n\n当你在右侧点击 **'提取核心术语'** 或在概览页生成 **'摘要'** 后，AI 提炼的干货会自动沉淀在这里，方便你随时查阅，无需翻找聊天记录。")
                 
                 st.markdown('</div>', unsafe_allow_html=True)
-
-            # Panel C: 纯文本备份
-            with left_tab3:
-                st.caption("如果 PDF 无法加载，可查看解析后的纯文本：")
-                st.text_area("Raw Text", st.session_state.raw_text, height=800, label_visibility="collapsed")
 
         # --- 右侧：AI 导师交互区 ---
         with col2:
             st.subheader("💬 AI 导师")
             
-            # --- 工具栏 (Action Bar) ---
-            # 使用卡片包裹，视觉更整洁
+            # --- 工具栏 ---
             st.markdown('<div class="info-card" style="padding: 15px; margin-bottom: 15px;">', unsafe_allow_html=True)
             st.caption("🛠️ 挖掘工具 (点击后结果将在左侧'知识库'显示)")
             c_btn1, c_btn2 = st.columns(2)
@@ -439,7 +807,7 @@ if st.session_state.raw_text:
                         if res:
                             st.session_state.analysis_result = res
                             st.success("已提取！请查看左侧【🧠 知识库】面板")
-                            st.rerun() # 强制刷新以更新左侧
+                            st.rerun()
 
             with c_btn2:
                 if st.button("📊 提取实验数据", key="btn_data", use_container_width=True):
@@ -451,15 +819,12 @@ if st.session_state.raw_text:
                     论文内容：{st.session_state.raw_text}"""
                     with st.spinner("正在挖掘数据..."):
                         res_data = call_qwen(prompt_data)
-                        # 数据提取的结果通常适合直接对话显示，也可以存入 session_state 显示在左侧
-                        # 这里为了交互流畅，我们选择直接追加到聊天记录
-                        st.session_state.chat_history.append({'role': 'assistant', 'content': f"� **实验数据提取结果**：\n\n{res_data}"})
+                        st.session_state.chat_history.append({'role': 'assistant', 'content': f"📊 **实验数据提取结果**：\n\n{res_data}"})
                         st.rerun()
 
             st.markdown('</div>', unsafe_allow_html=True)
 
             # --- 聊天区域 ---
-            # 固定高度容器，防止页面过长
             chat_container = st.container(height=600)
             with chat_container:
                 for msg in st.session_state.chat_history:
@@ -467,15 +832,12 @@ if st.session_state.raw_text:
 
             # 输入框
             if user_input := st.chat_input("针对论文提问..."):
-                # 1. 显示用户输入
                 with chat_container:
                     st.chat_message("user").write(user_input)
                 st.session_state.chat_history.append({'role': 'user', 'content': user_input})
 
-                # 2. 构建 Prompt (使用全文)
                 context = f"基于论文内容：\n{st.session_state.raw_text}\n\n用户问题：{user_input}"
                 
-                # 3. AI 回答
                 with chat_container:
                     with st.chat_message("assistant"):
                         with st.spinner("思考中..."):
@@ -484,9 +846,17 @@ if st.session_state.raw_text:
                                 st.write(response)
                                 st.session_state.chat_history.append({'role': 'assistant', 'content': response})
 
-    # === 功能 2: 沉浸式翻译工作台 (参考 PDF 阅读器布局) ===
+    # === 功能 2: 沉浸式翻译工作台 (PDF 原文对照版) ===
     with tab2:
-        # 顶部：功能控制条 (扁平化设计)
+        # 初始化状态
+        if "task_type" not in st.session_state:
+            st.session_state.task_type = "🔁 智能翻译 (中⇌英)"
+        if "target_input" not in st.session_state:
+            st.session_state.target_input = ""
+        if "polished_result" not in st.session_state:
+            st.session_state.polished_result = ""
+        
+        # 1. 顶部：功能控制条
         st.markdown('<div class="info-card" style="padding: 10px 20px; margin-bottom: 20px;">', unsafe_allow_html=True)
         c_mode, c_src, c_act = st.columns([5, 3, 2])
         
@@ -495,7 +865,8 @@ if st.session_state.raw_text:
                 "🎯 任务模式",
                 ("🔁 智能翻译 (中⇌英)", "✨ 学术润色", "🔴 语法纠错"),
                 horizontal=True,
-                label_visibility="collapsed"
+                label_visibility="collapsed",
+                key="task_type"
             )
         
         with c_src:
@@ -503,29 +874,30 @@ if st.session_state.raw_text:
             # 默认为 True (显示 PDF)
             source_mode = st.toggle("📖 显示论文 PDF 原件", value=True if uploaded_file else False)
         
-        with c_act:
-            run_btn = st.button("🚀 立即执行", type="primary", use_container_width=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 主工作区：左右分栏
+        # 2. 主工作区：左右分栏
         col_left, col_right = st.columns([1, 1])
 
         # --- 左侧：原文参考区 (Reference) ---
         with col_left:
-            if source_mode and st.session_state.raw_text:
-                st.markdown("**� 论文原文库 (仅供复制参考)**")
-                # 显示全文，方便用户复制
-                st.text_area(
-                    "Ref Text",
-                    value=st.session_state.raw_text,
-                    height=700,
-                    label_visibility="collapsed",
-                    disabled=False, # 允许选中复制
-                    help="请从中复制您想翻译的段落，粘贴到右侧输入框中。"
-                )
+            # 如果开关开启 且 文件存在，则显示 PDF iframe
+            if source_mode and uploaded_file:
+                st.markdown("**📖 论文原文 (保留排版，请直接划词复制)**")
+                
+                # === 核心逻辑：嵌入 PDF 原件 ===
+                import base64
+                # 将上传的文件转为 base64 编码
+                base64_pdf = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
+                # 嵌入 PDF 阅读器 (隐藏工具栏 toolbar=0 以保持界面简洁)
+                pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}#toolbar=0&navpanes=0" width="100%" height="700" type="application/pdf" style="border:1px solid #ddd; border-radius:10px;"></iframe>'
+                
+                st.markdown(pdf_display, unsafe_allow_html=True)
+                
             else:
-                st.markdown("**📄 原文暂存区 (自由粘贴)**")
-                # 空白画布，让用户自己粘贴大段文字
+                # 否则显示自由粘贴区
+                st.markdown("**📄 自由粘贴区 (无 PDF 时使用)**")
                 custom_text = st.text_area(
                     "Custom Text",
                     height=700,
@@ -535,57 +907,54 @@ if st.session_state.raw_text:
 
         # --- 右侧：翻译工作区 (Workbench) ---
         with col_right:
-            # 1. 待处理片段输入框
             st.markdown("**✂️ 待处理片段 (在此粘贴)**")
-            
-            # 如果session中没有content，初始化为空
-            if "target_clip" not in st.session_state: st.session_state.target_clip = ""
-            
-            target_input = st.text_area(
-                "Target Clip",
-                key="input_clip",
-                height=200, # 较矮的高度，用于放选中的段落
-                placeholder="💡 操作指南：\n1. 从左侧复制一段文字\n2. 粘贴到这里\n3. 点击上方\"🚀 立即执行\"",
-                label_visibility="collapsed"
-            )
 
-            # 2. 结果输出框
+            if "input_clip" not in st.session_state:
+                st.session_state.input_clip = ""
+            if "polished_result" not in st.session_state:
+                st.session_state.polished_result = ""
+
+            with st.form("translate_form", clear_on_submit=False):
+                st.text_area(
+                    "Target Clip",
+                    key="input_clip",
+                    height=200,
+                    placeholder="💡 操作指南：\n1. 从左侧复制一段文字\n2. 粘贴到这里\n3. 点击上方“🚀 立即执行”",
+                    label_visibility="collapsed"
+                )
+                submitted = st.form_submit_button("🚀 立即执行")
+
             st.markdown("**📝 AI 结果**")
-            output_text = st.session_state.get("polished_result", "")
-            
             st.text_area(
                 "Result",
-                value=output_text,
-                height=420, # 占据剩余空间
+                value=st.session_state.get("polished_result", ""),
+                height=420,
                 label_visibility="collapsed"
             )
 
-        # --- 逻辑处理 (点击执行后) ---
-        if run_btn and target_input:
-            prompt_task = ""
-            system_role = "你是一位资深的 Nature/Science 期刊审稿人。"
-            
-            # 逻辑 A: 智能翻译
-            if "智能翻译" in task_type:
-                contains_chinese = bool(re.search(r'[\u4e00-\u9fa5]', target_input))
-                if contains_chinese:
-                    prompt_task = f"请将以下中文翻译成**地道的学术英文 (SCI风格)**：\n\n{target_input}"
-                else:
-                    prompt_task = f"请将以下英文翻译成**通俗流畅的学术中文**：\n\n{target_input}"
-            
-            # 逻辑 B: 润色
-            elif "学术润色" in task_type:
-                prompt_task = f"请润色以下段落，提升词汇高级感和语法准确性：\n\n{target_input}"
-            
-            # 逻辑 C: 纠错
-            elif "语法纠错" in task_type:
-                prompt_task = f"请找出以下段落的语法错误并给出修改建议：\n\n{target_input}"
+        # --- 逻辑处理（点一次就走） ---
+        if submitted:
+            target_input = st.session_state.input_clip.strip()
+            if not target_input:
+                st.warning("请先粘贴待处理片段")
+            else:
+                prompt_task = ""
+                system_role = "你是一位资深的 Nature/Science 期刊审稿人。"
 
-            with st.spinner("AI 正在处理..."):
-                # 调用 AI
-                res = call_qwen(prompt_task, system_instruction=system_role)
-                st.session_state.polished_result = res
-                st.rerun() # 刷新以显示结果
+                if "智能翻译" in task_type:
+                    contains_chinese = bool(re.search(r'[\u4e00-\u9fa5]', target_input))
+                    prompt_task = (
+                        f"请将以下中文翻译成**地道的学术英文 (SCI风格)**：\n\n{target_input}"
+                        if contains_chinese else
+                        f"请将以下英文翻译成**通俗流畅的学术中文**：\n\n{target_input}"
+                    )
+                elif "学术润色" in task_type:
+                    prompt_task = f"请润色以下段落，提升词汇高级感和语法准确性：\n\n{target_input}"
+                else:
+                    prompt_task = f"请找出以下段落的语法错误并给出修改建议：\n\n{target_input}"
+
+                with st.spinner("AI 正在处理..."):
+                    st.session_state.polished_result = call_qwen(prompt_task, system_instruction=system_role)
 
 else:
     st.info("👋 请在左侧上传 PDF 开始体验 PaperAgent Pro！")
