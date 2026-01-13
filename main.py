@@ -701,7 +701,8 @@ with st.sidebar:
                 data=md_content,
                 file_name="study_notes.md",
                 mime="text/markdown",
-                use_container_width=True
+                use_container_width=True,
+                key="download_notes_md"
             )
 
         # 2. PDF 导出 (新增功能)
@@ -843,7 +844,8 @@ if st.session_state.raw_text:
                     "📥 下载 PDF",
                     data=uploaded_file.getvalue(),
                     file_name=uploaded_file.name,
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    key="download_pdf_tab1"
                 )
                 display_pdf(uploaded_file)
             
@@ -974,7 +976,8 @@ if st.session_state.raw_text:
                     "📥 下载 PDF",
                     data=uploaded_file.getvalue(),
                     file_name=uploaded_file.name,
-                    mime="application/pdf"
+                    mime="application/pdf",
+                    key="download_pdf_tab2"
                 )
                 # 使用Blob URL方式嵌入PDF，避免浏览器拦截
                 display_pdf(uploaded_file, height=700)
