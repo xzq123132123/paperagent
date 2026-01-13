@@ -12,7 +12,6 @@ import hashlib  # <--- 新增
 from fpdf import FPDF  # <--- 新增
 from datetime import datetime
 
-
 # --- 页面基础配置 ---
 st.set_page_config(
     page_title="AI 论文助读 Agent Pro",
@@ -908,18 +907,11 @@ if st.session_state.raw_text:
 
         # --- 左侧：原文参考区 (Reference) ---
         with col_left:
-            # 如果开关开启 且 文件存在，则显示 PDF iframe
+            # 如果开关开启 且 文件存在，则显示 PDF
             if source_mode and uploaded_file:
                 st.markdown("**📖 论文原文 (保留排版，请直接划词复制)**")
-                
-                # === 核心逻辑：嵌入 PDF 原件 ===
-                import base64
-                # 将上传的文件转为 base64 编码
-                base64_pdf = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-                # 嵌入 PDF 阅读器 (隐藏工具栏 toolbar=0 以保持界面简洁)
-                pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}#toolbar=0&navpanes=0" width="100%" height="700" type="application/pdf" style="border:1px solid #ddd; border-radius:10px;"></iframe>'
-                
-                st.markdown(pdf_display, unsafe_allow_html=True)
+                # 使用Blob URL方式嵌入PDF，避免浏览器拦截
+                display_pdf(uploaded_file, height=700)
                 
             else:
                 # 否则显示自由粘贴区
