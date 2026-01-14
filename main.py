@@ -382,6 +382,25 @@ def display_pdf(uploaded_file, height=800):
 
     components.html(html, height=height, scrolling=True)
 
+def display_pdf_selectable(uploaded_file, height=700):
+    """
+    ✅ 可复制版本：使用 iframe 显示 PDF（支持文本选择和复制）
+    """
+    if uploaded_file is None:
+        return
+
+    base64_pdf = base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
+
+    pdf_iframe = f"""
+    <iframe
+        src="data:application/pdf;base64,{base64_pdf}#toolbar=1&navpanes=0"
+        width="100%"
+        height="{height}"
+        style="border:1px solid #ddd; border-radius:10px;"
+    ></iframe>
+    """
+    st.markdown(pdf_iframe, unsafe_allow_html=True)
+
 
 # 上下文管理器：临时禁用代理 (给 DashScope 用)
 class NoProxyContext:
@@ -979,8 +998,8 @@ if st.session_state.raw_text:
                     mime="application/pdf",
                     key="download_pdf_tab2"
                 )
-                # 使用Blob URL方式嵌入PDF，避免浏览器拦截
-                display_pdf(uploaded_file, height=700)
+                # 使用可复制版本的PDF显示
+                display_pdf_selectable(uploaded_file, height=700)
                 
             else:
                 # 否则显示自由粘贴区
