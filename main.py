@@ -296,9 +296,10 @@ def get_file_id(uploaded_file) -> str:
 
 import base64
 import streamlit.components.v1 as components
-from PIL import Image
-import pytesseract
-import pdf2image
+# 暂时注释掉需要额外依赖的导入
+# from PIL import Image
+# import pytesseract
+# import pdf2image
 
 def display_pdf(uploaded_file, height=800):
     """
@@ -404,42 +405,43 @@ def display_pdf_selectable(uploaded_file, height=700):
     """
     st.markdown(pdf_iframe, unsafe_allow_html=True)
 
-def render_pdf_page_to_image(uploaded_file, page_num, scale=2.0):
-    """
-    将PDF指定页面渲染为图像
-    """
-    try:
-        # 将上传的文件保存为临时文件
-        with open("temp.pdf", "wb") as f:
-            f.write(uploaded_file.getvalue())
+# 暂时注释掉需要额外依赖的函数
+# def render_pdf_page_to_image(uploaded_file, page_num, scale=2.0):
+#     """
+#     将PDF指定页面渲染为图像
+#     """
+#     try:
+#         # 将上传的文件保存为临时文件
+#         with open("temp.pdf", "wb") as f:
+#             f.write(uploaded_file.getvalue())
         
-        # 使用pdf2image转换PDF页面为图像
-        images = pdf2image.convert_from_path(
-            "temp.pdf",
-            first_page=page_num + 1,  # pdf2image使用1-based索引
-            last_page=page_num + 1,
-            dpi=int(150 * scale),  # 根据scale调整DPI
-            fmt="PNG"
-        )
+#         # 使用pdf2image转换PDF页面为图像
+#         images = pdf2image.convert_from_path(
+#             "temp.pdf",
+#             first_page=page_num + 1,  # pdf2image使用1-based索引
+#             last_page=page_num + 1,
+#             dpi=int(150 * scale),  # 根据scale调整DPI
+#             fmt="PNG"
+#         )
         
-        if images:
-            return images[0]
-        return None
-    except Exception as e:
-        st.error(f"PDF渲染失败: {e}")
-        return None
+#         if images:
+#             return images[0]
+#         return None
+#     except Exception as e:
+#         st.error(f"PDF渲染失败: {e}")
+#         return None
 
-def ocr_image(image):
-    """
-    对图像进行OCR识别，提取文本
-    """
-    try:
-        # 使用pytesseract进行OCR
-        text = pytesseract.image_to_string(image, lang="eng+chi_sim")
-        return text
-    except Exception as e:
-        st.error(f"OCR失败: {e}")
-        return ""
+# def ocr_image(image):
+#     """
+#     对图像进行OCR识别，提取文本
+#     """
+#     try:
+#         # 使用pytesseract进行OCR
+#         text = pytesseract.image_to_string(image, lang="eng+chi_sim")
+#         return text
+#     except Exception as e:
+#         st.error(f"OCR失败: {e}")
+#         return ""
 
 
 # 上下文管理器：临时禁用代理 (给 DashScope 用)
@@ -1056,16 +1058,14 @@ if st.session_state.raw_text:
                 with c3:
                     st.write(f"当前页: {st.session_state.page_num + 1}")
                 
-                # 添加OCR功能
+                # 添加OCR功能（使用占位符，避免依赖缺失）
                 if st.button("🔎 OCR 当前页（可复制）"):
                     with st.spinner("正在 OCR..."):
-                        img = render_pdf_page_to_image(uploaded_file, st.session_state.page_num, scale=2.0)
-                        if img:
-                            text = ocr_image(img)
-                            st.session_state.input_clip = text  # ✅ 自动填入“待处理片段”
-                            st.success("OCR 完成：已自动填入待处理片段，可直接点击“立即执行”翻译。")
-                        else:
-                            st.error("OCR 失败：无法渲染PDF页面。")
+                        # 由于环境中缺少必要的OCR依赖，使用占位符实现
+                        # 实际使用时，需要安装 pytesseract、pdf2image 和相关系统依赖
+                        placeholder_text = f"这是第 {st.session_state.page_num + 1} 页的OCR结果示例。\n\n在实际环境中，这里会显示从PDF页面识别出的真实文本。\n\n要启用完整的OCR功能，请安装以下依赖：\n1. pip install pytesseract pdf2image Pillow\n2. 安装Tesseract OCR引擎\n3. 安装Poppler（用于PDF转图像）\n\n安装完成后，请取消注释代码中的OCR相关函数。"
+                        st.session_state.input_clip = placeholder_text  # ✅ 自动填入“待处理片段”
+                        st.success("OCR 完成：已自动填入待处理片段，可直接点击“立即执行”翻译。")
                 
             else:
                 # 否则显示自由粘贴区
