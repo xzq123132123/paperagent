@@ -76,6 +76,14 @@ def clean_mermaid(text: str) -> str:
         return match.group(0)
 
     text = re.sub(r'(\w+)\["([^"]+)"\]', replace_node, text)
+
+    # Append default sci-fi node styling (mermaid v10 flowchart)
+    if text.lstrip().startswith(("flowchart", "graph")):
+        text += (
+            "\nclassDef default fill:#0d1a33,stroke:#00e5ff,"
+            "color:#e0e8f0,stroke-width:1.5px,rx:8,ry:8;\n"
+        )
+
     return text
 
 
@@ -87,7 +95,8 @@ def build_mermaid_prompt(full_text: str) -> str:
 【必须遵守】
 1) 输出必须以 flowchart TD 开头，只输出 Mermaid 代码本体。
 2) 每个节点必须写成：ID["显示文字"]（显示文字允许空格和中文）。
-   - ID 只能用 A1,A2,B1... 这种简短ID，禁止用驼峰词当ID。
+   - ID 只能用 A1,A2,B1... 这种简短ID。
+   - 每个节点的显示文字必须包含分类标签+内容，如 "背景：..."、"方法：..."、"实验：..."、"结论：..."。
 3) 逻辑关系表示：
    - "-->"：主逻辑关系（论文真正给出的内容）
    - "-.->"：说明/注释/非主逻辑（文献未明确给出的内容）
@@ -105,18 +114,13 @@ def build_mermaid_prompt(full_text: str) -> str:
    - 实验：写出具体的提升数值（如 "锌耗降低 46kg"）。
 7) 示例结构（供参考）：
    flowchart TD
-   A["背景"]
-   A --> B["区间数据相比点数据<br/>包含更多信息"]
-   A --> C["传统方法难以同时刻画<br/>区间范围和水平特征"]
-
-   D["方法"]
-   D --> D1["提出区间自回归<br/>(ACI) 模型"]
-   D --> D2["采用最小距离估计<br/>进行参数估计"]
-
-   E["实验结果"]
-   E --> F["结论"]
-
-   F -.-> N["部分结论在文献中<br/>未明确报告"]
+   A["背景：传统方法无法<br/>同时刻画区间范围"]
+   A --> B["提出区间自回归<br/>(ACI) 模型"]
+   B --> C["采用最小距离估计<br/>进行参数估计"]
+   C --> D["实验：锌耗降低<br/>46kg / 精度提升 12%"]
+   D --> E["结论：区间建模<br/>优于传统点估计"]
+   B -.-> S1["说明：历史数据<br/>包含区间信息"]
+   D -.-> S2["未明确：模型<br/>鲁棒性验证缺失"]
 
 【论文内容】
 {full_text}
@@ -128,13 +132,62 @@ def render_mermaid(mermaid_code: str, height: int = 620):
     mermaid_code = clean_mermaid(mermaid_code)
 
     html = f"""
-    <div class="mermaid">
-    {mermaid_code}
+    <style>
+      .mermaid-container {{
+        background: linear-gradient(135deg, rgba(6,11,20,0.92), rgba(13,26,51,0.85));
+        border: 1px solid rgba(0,229,255,0.15);
+        border-radius: 10px;
+        padding: 24px 16px;
+        box-shadow: 0 0 40px rgba(0,229,255,0.06), inset 0 0 80px rgba(0,0,0,0.3);
+      }}
+      .mermaid-container svg {{
+        max-width: 100%;
+        filter: drop-shadow(0 0 6px rgba(0,229,255,0.2));
+      }}
+      .mermaid-container .edgePath .path {{
+        stroke-width: 1.8px;
+      }}
+      .mermaid-container .node rect,
+      .mermaid-container .node circle,
+      .mermaid-container .node polygon {{
+        stroke-width: 1.4px;
+      }}
+    </style>
+    <div class="mermaid-container">
+      <div class="mermaid">
+      {mermaid_code}
+      </div>
     </div>
 
     <script type="module">
       import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-      mermaid.initialize({{ startOnLoad: true, securityLevel: 'loose' }});
+      mermaid.initialize({{
+        startOnLoad: true,
+        securityLevel: 'loose',
+        theme: 'base',
+        themeVariables: {{
+          primaryColor: '#0d1a33',
+          primaryTextColor: '#e0e8f0',
+          primaryBorderColor: '#00e5ff',
+          lineColor: '#b44aff',
+          secondaryColor: '#0f1d35',
+          secondaryTextColor: '#b8c9dd',
+          secondaryBorderColor: '#b44aff',
+          tertiaryColor: '#080f1f',
+          tertiaryTextColor: '#8899aa',
+          tertiaryBorderColor: '#5a6a80',
+          fontFamily: 'Segoe UI, Helvetica Neue, sans-serif',
+          fontSize: '13px',
+          edgeLabelBackground: 'transparent',
+        }},
+        flowchart: {{
+          htmlLabels: true,
+          curve: 'basis',
+          padding: 18,
+          nodeSpacing: 50,
+          rankSpacing: 60,
+        }},
+      }});
     </script>
     """
 
