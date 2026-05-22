@@ -339,89 +339,44 @@ if st.session_state.raw_text and uploaded_file:
     with tab2:
         if "task_type" not in st.session_state:
             st.session_state.task_type = "🔁 智能翻译 (中⇌英)"
-        if "target_input" not in st.session_state:
-            st.session_state.target_input = ""
+        if "input_clip" not in st.session_state:
+            st.session_state.input_clip = ""
         if "polished_result" not in st.session_state:
             st.session_state.polished_result = ""
 
         st.markdown(
-            '<div class="info-card" style="padding: 10px 20px; margin-bottom: 20px;">',
+            '<div class="info-card" style="padding: 16px 24px; margin-bottom: 20px;">',
             unsafe_allow_html=True,
         )
-        c_mode, c_src, _ = st.columns([5, 3, 2])
-
-        with c_mode:
-            task_type = st.radio(
-                "🎯 任务模式",
-                ("🔁 智能翻译 (中⇌英)", "✨ 学术润色", "🔴 语法纠错"),
-                horizontal=True,
-                label_visibility="collapsed",
-                key="task_type",
-            )
-
-        with c_src:
-            source_mode = st.toggle(
-                "📖 显示论文 PDF 原件",
-                value=True,
-                key="pdf_source_toggle",
-            )
-
+        task_type = st.radio(
+            "🎯 任务模式",
+            ("🔁 智能翻译 (中⇌英)", "✨ 学术润色", "🔴 语法纠错"),
+            horizontal=True,
+            key="task_type",
+        )
         st.markdown("</div>", unsafe_allow_html=True)
 
-        col_left, col_right = st.columns([1.2, 0.8])
-
-        with col_left:
-            if source_mode and uploaded_file:
-                st.markdown("**📖 论文原文**")
-                display_pdf(uploaded_file, height=800)
-
-                st.download_button(
-                    "📥 下载 PDF 到本地",
-                    data=uploaded_file.getvalue(),
-                    file_name=uploaded_file.name,
-                    mime="application/pdf",
-                    key="download_pdf_tab2",
-                    use_container_width=True,
-                )
-            else:
-                st.markdown("**📄 自由粘贴区 (无 PDF 时使用)**")
-                st.text_area(
-                    "Custom Text",
-                    height=700,
-                    placeholder="在此粘贴大段原文作为参考...",
-                    label_visibility="collapsed",
-                )
-
-        with col_right:
-            st.markdown("**✂️ 待处理片段 (在此粘贴)**")
-
-            if "input_clip" not in st.session_state:
-                st.session_state.input_clip = ""
-            if "polished_result" not in st.session_state:
-                st.session_state.polished_result = ""
-
-            with st.form("translate_form", clear_on_submit=False):
-                st.text_area(
-                    "Target Clip",
-                    key="input_clip",
-                    height=200,
-                    placeholder=(
-                        '💡 操作指南：\n'
-                        '1. 从左侧复制一段文字\n'
-                        '2. 粘贴到这里\n'
-                        '3. 点击上方「🚀 立即执行」'
-                    ),
-                    label_visibility="collapsed",
-                )
-                submitted = st.form_submit_button("🚀 立即执行")
-
-            st.markdown("**📝 AI 结果**")
+        with st.form("translate_form", clear_on_submit=False):
             st.text_area(
+                "✂️ 待处理片段（在此粘贴要处理的文字）",
+                key="input_clip",
+                height=200,
+                placeholder="从 PDF 中复制论文段落粘贴到这里...",
+                label_visibility="visible",
+            )
+            submitted = st.form_submit_button("🚀 立即执行", use_container_width=True)
+
+        st.markdown("### 📝 AI 结果")
+        result_placeholder = st.empty()
+        if st.session_state.polished_result:
+            result_placeholder.text_area(
                 "Result",
-                value=st.session_state.get("polished_result", ""),
-                height=420,
+                value=st.session_state.polished_result,
+                height=450,
                 label_visibility="collapsed",
             )
+        else:
+            st.info("AI 处理结果将显示在这里。")
 
         if submitted:
             target_input = st.session_state.input_clip.strip()
@@ -439,7 +394,7 @@ if st.session_state.raw_text and uploaded_file:
                         if contains_chinese
                         else f"请将以下英文翻译成**通俗流畅的学术中文**：\n\n{target_input}"
                     )
-                elif "学术润色" in st.session_state.task_type:
+                elif "学术润色" in task_type:
                     prompt_task = (
                         f"请润色以下段落，提升词汇高级感和语法准确性：\n\n{target_input}"
                     )
@@ -453,6 +408,7 @@ if st.session_state.raw_text and uploaded_file:
                         api_key, reader_level, prompt_task,
                         system_instruction=system_role,
                     )
+                    st.rerun()
 
 else:
     st.info("👋 请在左侧上传 PDF 开始体验 PaperAgent Pro！")
