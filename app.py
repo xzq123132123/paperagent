@@ -218,45 +218,35 @@ if st.session_state.raw_text and uploaded_file:
     # Tab 1: Deep Reading
     # ═══════════════════════════════════════════════════════════
     with tab1:
-        col1, col2 = st.columns([6, 4])
+        col1, col2 = st.columns([6.5, 3.5])
 
         with col1:
-            left_tab1, left_tab2 = st.tabs(["📄 PDF 原文", "🧠 知识库 (术语/数据)"])
+            display_pdf(uploaded_file, height=900)
+            st.download_button(
+                "📥 下载 PDF",
+                data=uploaded_file.getvalue(),
+                file_name=uploaded_file.name,
+                mime="application/pdf",
+                key="download_pdf_tab1",
+            )
 
-            with left_tab1:
-                display_pdf(uploaded_file, height=750)
-                st.download_button(
-                    "📥 下载 PDF",
-                    data=uploaded_file.getvalue(),
-                    file_name=uploaded_file.name,
-                    mime="application/pdf",
-                    key="download_pdf_tab1",
-                )
-
-            with left_tab2:
-                st.markdown('<div class="info-card">', unsafe_allow_html=True)
+            with st.expander("🧠 知识库（术语 / 实验数据）", expanded=True):
                 has_content = False
-
                 if st.session_state.analysis_result:
                     st.markdown("### 📚 核心术语表")
                     st.markdown(st.session_state.analysis_result)
                     st.divider()
                     has_content = True
-
                 if st.session_state.get("experiment_data"):
                     st.markdown("### 📊 实验数据")
                     st.markdown(st.session_state.experiment_data)
                     st.divider()
                     has_content = True
-
                 if not has_content:
                     st.info(
-                        "👈 这里是智能知识库。\n\n"
                         "点击右侧的 **'提取核心术语'** 或 **'提取实验数据'**，"
                         "AI 提炼的干货会自动沉淀在这里。"
                     )
-
-                st.markdown("</div>", unsafe_allow_html=True)
 
         with col2:
             st.subheader("💬 AI 导师")
