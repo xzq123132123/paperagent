@@ -35,6 +35,11 @@ with st.sidebar:
 
     st.markdown("---")
 
+    st.markdown(
+        "🔑 [申请通义千问 API Key](https://bailian.console.aliyun.com/)",
+        unsafe_allow_html=True,
+    )
+
     st.subheader("🎯 身份设定")
     reader_level = st.radio(
         "选择解释通俗度：",
