@@ -127,9 +127,21 @@ def build_mermaid_prompt(full_text: str) -> str:
 """.strip()
 
 
-def render_mermaid(mermaid_code: str, height: int = 620):
-    """Render Mermaid diagram via injected HTML + mermaid@10 CDN."""
+def render_mermaid(mermaid_code: str, height: int = 620, zoom: bool = False):
+    """Render Mermaid diagram via injected HTML + mermaid@10 CDN.
+
+    Args:
+        mermaid_code: Raw mermaid source.
+        height: iframe pixel height.
+        zoom: if True, use larger font / spacing and scale up the SVG.
+    """
     mermaid_code = clean_mermaid(mermaid_code)
+
+    font_size = "15px" if zoom else "13px"
+    node_spacing = 70 if zoom else 50
+    rank_spacing = 80 if zoom else 60
+    container_padding = "32px 20px" if zoom else "24px 16px"
+    svg_scale = "transform: scale(1.15); transform-origin: top left;" if zoom else ""
 
     html = f"""
     <style>
@@ -137,12 +149,14 @@ def render_mermaid(mermaid_code: str, height: int = 620):
         background: linear-gradient(135deg, rgba(6,11,20,0.92), rgba(13,26,51,0.85));
         border: 1px solid rgba(0,229,255,0.15);
         border-radius: 10px;
-        padding: 24px 16px;
+        padding: {container_padding};
         box-shadow: 0 0 40px rgba(0,229,255,0.06), inset 0 0 80px rgba(0,0,0,0.3);
+        overflow: auto;
       }}
       .mermaid-container svg {{
         max-width: 100%;
         filter: drop-shadow(0 0 6px rgba(0,229,255,0.2));
+        {svg_scale}
       }}
       .mermaid-container .edgePath .path {{
         stroke-width: 1.8px;
@@ -177,15 +191,15 @@ def render_mermaid(mermaid_code: str, height: int = 620):
           tertiaryTextColor: '#8899aa',
           tertiaryBorderColor: '#5a6a80',
           fontFamily: 'Segoe UI, Helvetica Neue, sans-serif',
-          fontSize: '13px',
+          fontSize: '{font_size}',
           edgeLabelBackground: 'transparent',
         }},
         flowchart: {{
           htmlLabels: true,
           curve: 'basis',
           padding: 18,
-          nodeSpacing: 50,
-          rankSpacing: 60,
+          nodeSpacing: {node_spacing},
+          rankSpacing: {rank_spacing},
         }},
       }});
     </script>
