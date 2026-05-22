@@ -368,12 +368,12 @@ if st.session_state.raw_text and uploaded_file:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        col_left, col_right = st.columns([1, 1])
+        col_left, col_right = st.columns([1.2, 0.8])
 
         with col_left:
             if source_mode and uploaded_file:
-                st.markdown("**📖 论文原文（可使用下方按钮翻页、复制文字）**")
-                display_pdf(uploaded_file, height=650)
+                st.markdown("**📖 论文原文**")
+                display_pdf(uploaded_file, height=820)
 
                 st.download_button(
                     "📥 下载 PDF 到本地",
