@@ -48,16 +48,6 @@ _BASE_CSS = """
 </style>
 """
 
-_INPUT_CLEANUP_CSS = """
-<style>
-    [data-baseweb="input"] input {
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-</style>
-"""
-
 # ═══════════════════════════════════════════════════════════════
 # Theme definitions
 # ═══════════════════════════════════════════════════════════════
@@ -587,10 +577,6 @@ _WIDGET_OVERRIDES = {
     [data-testid="stFileUploader"] button:hover {
         background: rgba(0,229,255,0.2) !important; border-color: #00e5ff !important;
     }
-    [data-baseweb="input"] {
-        background-color: #0a101f !important;
-        border: 1px solid rgba(0,229,255,0.25) !important; border-radius: 4px !important;
-    }
     [data-baseweb="input"] input { color: #00e5ff !important; caret-color: #00e5ff !important; }
     [data-baseweb="input"] button, [data-baseweb="input"] button svg {
         color: #00e5ff !important; fill: #00e5ff !important;
@@ -621,10 +607,6 @@ _WIDGET_OVERRIDES = {
         border: 1px solid #3498db !important; border-radius: 6px !important;
     }
     [data-testid="stFileUploader"] button:hover { background: #3498db !important; color: #fff !important; }
-    [data-baseweb="input"] {
-        background-color: #fff !important;
-        border: 1px solid #d1d5db !important; border-radius: 6px !important;
-    }
     [data-baseweb="input"] input { color: #333 !important; caret-color: #3498db !important; }
     [data-baseweb="input"] button, [data-baseweb="input"] button svg {
         color: #6c757d !important; fill: #6c757d !important;
@@ -657,10 +639,6 @@ _WIDGET_OVERRIDES = {
     [data-testid="stFileUploader"] button:hover {
         background: rgba(255,179,71,0.2) !important; border-color: #ffb347 !important;
     }
-    [data-baseweb="input"] {
-        background-color: #1c1810 !important;
-        border: 1px solid rgba(255,179,71,0.25) !important; border-radius: 4px !important;
-    }
     [data-baseweb="input"] input { color: #e6d5a8 !important; caret-color: #ffb347 !important; }
     [data-baseweb="input"] button, [data-baseweb="input"] button svg {
         color: #ffb347 !important; fill: #ffb347 !important;
@@ -691,10 +669,6 @@ _WIDGET_OVERRIDES = {
         border: 1px solid #ccc !important; border-radius: 2px !important;
     }
     [data-testid="stFileUploader"] button:hover { background: #f5f5f5 !important; border-color: #999 !important; }
-    [data-baseweb="input"] {
-        background-color: #fff !important;
-        border: 1px solid #e0e0e0 !important; border-radius: 2px !important;
-    }
     [data-baseweb="input"] input { color: #333 !important; caret-color: #888 !important; }
     [data-baseweb="input"] button, [data-baseweb="input"] button svg {
         color: #888 !important; fill: #888 !important;
@@ -727,10 +701,6 @@ _WIDGET_OVERRIDES = {
     [data-testid="stFileUploader"] button:hover {
         background: rgba(0,230,118,0.2) !important; border-color: #00e676 !important;
     }
-    [data-baseweb="input"] {
-        background-color: #0c1c14 !important;
-        border: 1px solid rgba(0,230,118,0.2) !important; border-radius: 4px !important;
-    }
     [data-baseweb="input"] input { color: #b8e6c0 !important; caret-color: #00e676 !important; }
     [data-baseweb="input"] button, [data-baseweb="input"] button svg {
         color: #00e676 !important; fill: #00e676 !important;
@@ -748,7 +718,6 @@ def inject_css(theme_name: str = "sci-fi"):
     st.markdown(_BASE_CSS, unsafe_allow_html=True)
     st.markdown(THEMES[theme_name]["css"], unsafe_allow_html=True)
     st.markdown(_WIDGET_OVERRIDES.get(theme_name, _WIDGET_OVERRIDES["sci-fi"]), unsafe_allow_html=True)
-    st.markdown(_INPUT_CLEANUP_CSS, unsafe_allow_html=True)
 
 
 def build_system_prompt(reader_level: str) -> str:
