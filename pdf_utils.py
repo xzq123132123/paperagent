@@ -107,6 +107,7 @@ def display_pdf(uploaded_file, height=800):
         <button id="prev-btn">◀ 上一页</button>
         <span><strong id="page-num">1</strong> / <span id="page-count">?</span></span>
         <button id="next-btn">下一页 ▶</button>
+        <button id="copy-btn" style="margin-left:12px;">📋 复制本页文字</button>
       </div>
       <div id="pdf-reader-stage">
         <div id="pdf-canvas-wrap">
@@ -136,10 +137,30 @@ def display_pdf(uploaded_file, height=800):
       const textLayerDiv = document.getElementById('pdf-text-layer');
       const btnPrev = document.getElementById('prev-btn');
       const btnNext = document.getElementById('next-btn');
+      const btnCopy = document.getElementById('copy-btn');
+
+      // Copy current page text to clipboard
+      let currentPageText = '';
+      btnCopy.addEventListener('click', async function() {{
+        if (!currentPageText) {{
+          btnCopy.textContent = '⚠ 无文字';
+          setTimeout(() => {{ btnCopy.textContent = '📋 复制本页文字'; }}, 2000);
+          return;
+        }}
+        try {{
+          await navigator.clipboard.writeText(currentPageText);
+          btnCopy.textContent = '✅ 已复制!';
+          setTimeout(() => {{ btnCopy.textContent = '📋 复制本页文字'; }}, 2000);
+        }} catch(e) {{
+          btnCopy.textContent = '❌ 复制失败';
+          setTimeout(() => {{ btnCopy.textContent = '📋 复制本页文字'; }}, 2000);
+        }}
+      }});
 
       function renderPage(num) {{
         pageRendering = true;
         textLayerDiv.innerHTML = '';
+        currentPageText = '';
 
         pdfDoc.getPage(num).then(function(page) {{
           const vp = page.getViewport({{ scale: 1 }});
@@ -165,7 +186,7 @@ def display_pdf(uploaded_file, height=800):
           // Render canvas
           const renderTask = page.render({{ canvasContext: ctx, viewport: viewport }});
 
-          // Render selectable text layer
+          // Render selectable text layer + store text for copy button
           page.getTextContent().then(function(textContent) {{
             pdfjsLib.renderTextLayer({{
               textContent: textContent,
@@ -173,6 +194,11 @@ def display_pdf(uploaded_file, height=800):
               viewport: viewport,
               textDivs: [],
             }});
+            // Store plain text for copy button
+            currentPageText = textContent.items
+              .map(function(it) {{ return it.str; }})
+              .join(' ')
+              .replace(/\\s+/g, ' ');
           }});
 
           renderTask.promise.then(function() {{
