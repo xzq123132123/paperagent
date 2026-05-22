@@ -167,31 +167,37 @@ def display_pdf(uploaded_file, height=800):
           const pw = vp.width, ph = vp.height;
           const cw = stage.clientWidth, ch = stage.clientHeight;
 
+          const pixelRatio = window.devicePixelRatio || 2;
           const scale = Math.min(
             (cw - 24) / pw,
             (ch - 16) / ph
-          );
+          ) * pixelRatio;
 
           const viewport = page.getViewport({{ scale: scale }});
           canvas.width = viewport.width;
           canvas.height = viewport.height;
-          canvas.style.width = viewport.width + 'px';
-          canvas.style.height = viewport.height + 'px';
+          canvas.style.width = Math.round(viewport.width / pixelRatio) + 'px';
+          canvas.style.height = Math.round(viewport.height / pixelRatio) + 'px';
 
-          wrap.style.width = viewport.width + 'px';
-          wrap.style.height = viewport.height + 'px';
-          textLayerDiv.style.width = viewport.width + 'px';
-          textLayerDiv.style.height = viewport.height + 'px';
+          const displayW = Math.round(viewport.width / pixelRatio);
+          const displayH = Math.round(viewport.height / pixelRatio);
+          wrap.style.width = displayW + 'px';
+          wrap.style.height = displayH + 'px';
+          textLayerDiv.style.width = displayW + 'px';
+          textLayerDiv.style.height = displayH + 'px';
 
-          // Render canvas
+          // Render canvas at high-DPI
           const renderTask = page.render({{ canvasContext: ctx, viewport: viewport }});
+
+          // Text layer at display (1x) scale so positions match CSS layout
+          const textViewport = page.getViewport({{ scale: scale / pixelRatio }});
 
           // Render selectable text layer + store text for copy button
           page.getTextContent().then(function(textContent) {{
             pdfjsLib.renderTextLayer({{
               textContent: textContent,
               container: textLayerDiv,
-              viewport: viewport,
+              viewport: textViewport,
               textDivs: [],
             }});
             // Store plain text for copy button
