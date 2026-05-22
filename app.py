@@ -218,12 +218,13 @@ if st.session_state.raw_text and uploaded_file:
     # Tab 1: Deep Reading
     # ═══════════════════════════════════════════════════════════
     with tab1:
-        col1, col2 = st.columns([5.5, 4.5])
+        col1, col2 = st.columns([6, 4])
 
         with col1:
             left_tab1, left_tab2 = st.tabs(["📄 PDF 原文", "🧠 知识库 (术语/数据)"])
 
             with left_tab1:
+                display_pdf(uploaded_file, height=750)
                 st.download_button(
                     "📥 下载 PDF",
                     data=uploaded_file.getvalue(),
@@ -231,7 +232,6 @@ if st.session_state.raw_text and uploaded_file:
                     mime="application/pdf",
                     key="download_pdf_tab1",
                 )
-                display_pdf(uploaded_file, height=620)
 
             with left_tab2:
                 st.markdown('<div class="info-card">', unsafe_allow_html=True)
