@@ -82,8 +82,23 @@ def display_pdf(uploaded_file, height=800):
         flex: 1; display: flex; align-items: center; justify-content: center;
         overflow: hidden; position: relative;
       }}
-      #pdf-reader-stage canvas {{
+      #pdf-canvas-wrap {{
+        position: relative;
         box-shadow: 0 2px 20px rgba(0,0,0,0.5); border-radius: 2px;
+      }}
+      #pdf-canvas-wrap canvas {{ display: block; }}
+      #pdf-text-layer {{
+        position: absolute; top: 0; left: 0; overflow: hidden;
+        opacity: 0.2; line-height: 1.0;
+        pointer-events: auto; user-select: text; cursor: text;
+      }}
+      #pdf-text-layer span {{
+        color: transparent;
+        position: absolute; white-space: pre;
+        transform-origin: 0% 0%;
+      }}
+      #pdf-text-layer span::selection {{
+        background: rgba(0,229,255,0.35); color: transparent;
       }}
     </style>
 
@@ -94,7 +109,10 @@ def display_pdf(uploaded_file, height=800):
         <button id="next-btn">下一页 ▶</button>
       </div>
       <div id="pdf-reader-stage">
-        <canvas id="pdf-canvas"></canvas>
+        <div id="pdf-canvas-wrap">
+          <canvas id="pdf-canvas"></canvas>
+          <div id="pdf-text-layer"></div>
+        </div>
       </div>
     </div>
 
@@ -114,11 +132,15 @@ def display_pdf(uploaded_file, height=800):
       const canvas = document.getElementById('pdf-canvas');
       const ctx = canvas.getContext('2d');
       const stage = document.getElementById('pdf-reader-stage');
+      const wrap = document.getElementById('pdf-canvas-wrap');
+      const textLayerDiv = document.getElementById('pdf-text-layer');
       const btnPrev = document.getElementById('prev-btn');
       const btnNext = document.getElementById('next-btn');
 
       function renderPage(num) {{
         pageRendering = true;
+        textLayerDiv.innerHTML = '';
+
         pdfDoc.getPage(num).then(function(page) {{
           const vp = page.getViewport({{ scale: 1 }});
           const pw = vp.width, ph = vp.height;
@@ -135,7 +157,25 @@ def display_pdf(uploaded_file, height=800):
           canvas.style.width = viewport.width + 'px';
           canvas.style.height = viewport.height + 'px';
 
-          page.render({{ canvasContext: ctx, viewport: viewport }}).promise.then(function() {{
+          wrap.style.width = viewport.width + 'px';
+          wrap.style.height = viewport.height + 'px';
+          textLayerDiv.style.width = viewport.width + 'px';
+          textLayerDiv.style.height = viewport.height + 'px';
+
+          // Render canvas
+          const renderTask = page.render({{ canvasContext: ctx, viewport: viewport }});
+
+          // Render selectable text layer
+          page.getTextContent().then(function(textContent) {{
+            pdfjsLib.renderTextLayer({{
+              textContent: textContent,
+              container: textLayerDiv,
+              viewport: viewport,
+              textDivs: [],
+            }});
+          }});
+
+          renderTask.promise.then(function() {{
             pageRendering = false;
             document.getElementById('page-num').textContent = pageNum;
             btnPrev.disabled = (pageNum <= 1);
