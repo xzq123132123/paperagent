@@ -44,6 +44,7 @@ _BASE_CSS = """
     .stDeployButton { display: none; }
     footer { visibility: hidden; }
     header { background: transparent !important; }
+    [data-baseweb="input"] button { display: none !important; }
 </style>
 """
 
