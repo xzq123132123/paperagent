@@ -5,7 +5,7 @@ from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 
-from config import setup_page, inject_css, build_system_prompt
+from config import setup_page, inject_css, THEME_CHOICES, THEME_KEY_MAP, THEME_KEYS
 from pdf_utils import (
     extract_text_from_pdf,
     get_file_id,
@@ -19,11 +19,30 @@ from summarization import generate_map_reduce_summary, generate_mindmap_code
 
 # ── Page setup ──────────────────────────────────────────────────
 setup_page()
-inject_css()
+
+if "theme" not in st.session_state:
+    st.session_state.theme = "sci-fi"
+
+inject_css(st.session_state.theme)
 
 # ── Sidebar ─────────────────────────────────────────────────────
 with st.sidebar:
     st.title("⚙️ 助手设置")
+
+    st.subheader("🎨 主题切换")
+    cur_idx = THEME_KEYS.index(st.session_state.theme) if st.session_state.theme in THEME_KEYS else 0
+    theme_display = st.selectbox(
+        "选择界面主题",
+        THEME_CHOICES,
+        index=cur_idx,
+        label_visibility="collapsed",
+    )
+    new_theme = THEME_KEY_MAP[theme_display]
+    if new_theme != st.session_state.theme:
+        st.session_state.theme = new_theme
+        st.rerun()
+
+    st.markdown("---")
 
     default_key = ""
     api_key = st.text_input(
