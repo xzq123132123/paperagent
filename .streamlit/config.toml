@@ -1,0 +1,18 @@
+[app]
+# Entry point
+runOnSave = false
+
+[server]
+# Main file to run
+runOnSave = false
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "dark"
+primaryColor = "#00e5ff"
+backgroundColor = "#060b14"
+secondaryBackgroundColor = "#0b1424"
+textColor = "#e0e8f0"
+font = "sans serif"
