@@ -356,27 +356,31 @@ if st.session_state.raw_text and uploaded_file:
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-        with st.form("translate_form", clear_on_submit=False):
-            st.text_area(
-                "✂️ 待处理片段（在此粘贴要处理的文字）",
-                key="input_clip",
-                height=200,
-                placeholder="从 PDF 中复制论文段落粘贴到这里...",
-                label_visibility="visible",
-            )
-            submitted = st.form_submit_button("🚀 立即执行", use_container_width=True)
+        col_left, col_right = st.columns([1, 1])
 
-        st.markdown("### 📝 AI 结果")
-        result_placeholder = st.empty()
-        if st.session_state.polished_result:
-            result_placeholder.text_area(
-                "Result",
-                value=st.session_state.polished_result,
-                height=450,
-                label_visibility="collapsed",
-            )
-        else:
-            st.info("AI 处理结果将显示在这里。")
+        with col_left:
+            st.markdown("### ✂️ 待处理片段")
+            with st.form("translate_form", clear_on_submit=False):
+                st.text_area(
+                    "待处理片段",
+                    key="input_clip",
+                    height=520,
+                    placeholder="从 PDF 中复制论文段落粘贴到这里...",
+                    label_visibility="collapsed",
+                )
+                submitted = st.form_submit_button("🚀 立即执行", use_container_width=True)
+
+        with col_right:
+            st.markdown("### 📝 AI 结果")
+            if st.session_state.polished_result:
+                st.text_area(
+                    "AI 结果",
+                    value=st.session_state.polished_result,
+                    height=550,
+                    label_visibility="collapsed",
+                )
+            else:
+                st.info("AI 处理结果将显示在这里。")
 
         if submitted:
             target_input = st.session_state.input_clip.strip()
