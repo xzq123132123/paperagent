@@ -178,7 +178,7 @@ def render_mermaid(mermaid_code: str, height: int = 700):
           tertiaryTextColor: '#8899aa',
           tertiaryBorderColor: '#5a6a80',
           fontFamily: 'Segoe UI, Helvetica Neue, sans-serif',
-          fontSize: '18px',
+          fontSize: '21px',
           edgeLabelBackground: 'transparent',
         }},
         flowchart: {{
