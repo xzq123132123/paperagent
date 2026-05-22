@@ -24,7 +24,7 @@ def split_text_into_chunks(text, chunk_size=4000, overlap=500):
 
 # ── Text wrapping ───────────────────────────────────────────────
 
-def wrap_text(text, max_len=12):
+def wrap_text(text, max_len=10):
     """Auto-insert <br/> for long node labels."""
     if not text:
         return text
@@ -107,7 +107,7 @@ def build_mermaid_prompt(full_text: str) -> str:
 5) 节点文本换行要求：
    - 所有较长节点文本，必须在合适位置插入 <br/> 强制换行
    - 不改语义，只做视觉换行
-   - 每行建议 10～14 个中文字符
+   - 每行建议 8～10 个中文字符
 6) 必须提取论文中的具体内容填充到节点中：
    - 背景：写出具体要解决什么难题？
    - 方法：写出具体的算法名称、模块名称（如 "HGSTA算法", "混合策略"）。
@@ -178,15 +178,15 @@ def render_mermaid(mermaid_code: str, height: int = 700):
           tertiaryTextColor: '#8899aa',
           tertiaryBorderColor: '#5a6a80',
           fontFamily: 'Segoe UI, Helvetica Neue, sans-serif',
-          fontSize: '15px',
+          fontSize: '18px',
           edgeLabelBackground: 'transparent',
         }},
         flowchart: {{
           htmlLabels: true,
           curve: 'basis',
-          padding: 20,
-          nodeSpacing: 60,
-          rankSpacing: 70,
+          padding: 22,
+          nodeSpacing: 80,
+          rankSpacing: 50,
         }},
       }});
     </script>
