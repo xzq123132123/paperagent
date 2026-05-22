@@ -363,7 +363,8 @@ if st.session_state.raw_text and uploaded_file:
         with c_src:
             source_mode = st.toggle(
                 "📖 显示论文 PDF 原件",
-                value=True if uploaded_file else False,
+                value=True,
+                key="pdf_source_toggle",
             )
 
         st.markdown("</div>", unsafe_allow_html=True)
