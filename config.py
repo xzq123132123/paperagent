@@ -48,6 +48,16 @@ _BASE_CSS = """
 </style>
 """
 
+_INPUT_CLEANUP_CSS = """
+<style>
+    [data-baseweb="input"] input {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+</style>
+"""
+
 # ═══════════════════════════════════════════════════════════════
 # Theme definitions
 # ═══════════════════════════════════════════════════════════════
@@ -738,6 +748,7 @@ def inject_css(theme_name: str = "sci-fi"):
     st.markdown(_BASE_CSS, unsafe_allow_html=True)
     st.markdown(THEMES[theme_name]["css"], unsafe_allow_html=True)
     st.markdown(_WIDGET_OVERRIDES.get(theme_name, _WIDGET_OVERRIDES["sci-fi"]), unsafe_allow_html=True)
+    st.markdown(_INPUT_CLEANUP_CSS, unsafe_allow_html=True)
 
 
 def build_system_prompt(reader_level: str) -> str:
