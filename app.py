@@ -200,13 +200,8 @@ if st.session_state.raw_text and uploaded_file:
 
         if "mindmap_code" in st.session_state and st.session_state.mindmap_code:
             st.markdown("### 🧠 逻辑结构导图")
-            zoom_on = st.toggle("🔍 放大模式", key="mindmap_zoom")
             try:
-                render_mermaid(
-                    st.session_state.mindmap_code,
-                    height=900 if zoom_on else 620,
-                    zoom=zoom_on,
-                )
+                render_mermaid(st.session_state.mindmap_code, height=700)
             except Exception as e:
                 st.error(f"Mermaid 渲染失败：{e}")
             st.divider()
