@@ -154,7 +154,7 @@ if uploaded_file:
             st.session_state.raw_text = extract_text_from_pdf(uploaded_file)
             st.success("解析成功！")
 
-if st.session_state.raw_text:
+if st.session_state.raw_text and uploaded_file:
     tab0, tab1, tab2 = st.tabs(["🏠 智能概览", "📖 深度阅读", "✍️ 学术润色"])
 
     # ═══════════════════════════════════════════════════════════
