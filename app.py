@@ -29,55 +29,58 @@ inject_css(st.session_state.theme)
 with st.sidebar:
     st.title("⚙️ 助手设置")
 
-    st.subheader("🎨 主题切换")
+    # ── API Key ────────────────────────────────────
+    st.markdown("#### 🔑 API Key")
+    api_key = st.text_input(
+        "通义千问 API Key",
+        value="",
+        type="password",
+        help="阿里云百炼控制台获取",
+        label_visibility="collapsed",
+        placeholder="粘贴你的 DashScope API Key",
+    )
+    st.markdown(
+        '<p style="font-size:0.78rem;margin-top:-0.5rem;">'
+        '🔑 <a href="https://bailian.console.aliyun.com/" target="_blank" '
+        'style="text-decoration:none;">申请通义千问 API Key</a></p>',
+        unsafe_allow_html=True,
+    )
+
+    st.divider()
+
+    # ── Theme + Identity ───────────────────────────
+    st.markdown("#### 🎨 界面偏好")
     cur_idx = THEME_KEYS.index(st.session_state.theme) if st.session_state.theme in THEME_KEYS else 0
     theme_display = st.selectbox(
-        "选择界面主题",
-        THEME_CHOICES,
-        index=cur_idx,
-        label_visibility="collapsed",
+        "选择界面主题", THEME_CHOICES, index=cur_idx, label_visibility="collapsed",
     )
     new_theme = THEME_KEY_MAP[theme_display]
     if new_theme != st.session_state.theme:
         st.session_state.theme = new_theme
         st.rerun()
 
-    st.markdown("---")
-
-    default_key = ""
-    api_key = st.text_input(
-        "通义千问 API Key",
-        value=default_key,
-        type="password",
-        help="阿里云百炼控制台获取",
-    )
-
-    st.markdown("---")
-
-    st.markdown(
-        "🔑 [申请通义千问 API Key](https://bailian.console.aliyun.com/)",
-        unsafe_allow_html=True,
-    )
-
-    st.subheader("🎯 身份设定")
+    st.markdown("")
     reader_level = st.radio(
-        "选择解释通俗度：",
+        "解释通俗度",
         ("完全新手 (生活比喻)", "初级研究员 (学术+直观)", "专家 (深度总结)"),
+        label_visibility="collapsed",
     )
 
-    st.markdown("---")
-    st.info(
-        "💡 **功能导航**：\n"
-        "1. **概览**：使用滑窗+归纳策略生成深度全文分析，包含详细摘要和BibTeX引用\n"
-        "2. **阅读**：左侧嵌入PDF原文（保留排版），右侧AI导师实时问答，智能知识库自动沉淀关键信息\n"
-        "3. **润色**：智能翻译（中⇌英）、学术润色、语法纠错，支持PDF原文对照"
-    )
+    st.divider()
 
-    st.markdown("---")
-    st.subheader("💾 成果导出")
+    # ── Navigation ─────────────────────────────────
+    with st.expander("📖 功能导航", expanded=False):
+        st.markdown("""
+        - **🏠 智能概览** — Map-Reduce 全文摘要 + Mermaid 导图 + BibTeX
+        - **📖 深度阅读** — PDF 原文对照 + AI 导师问答 + 知识库
+        - **✍️ 学术润色** — 中⇌英翻译 / 学术润色 / 语法纠错
+        """)
 
+    # ── Export ─────────────────────────────────────
     has_history = "chat_history" in st.session_state and st.session_state.chat_history
     has_summary = "paper_summary" in st.session_state and st.session_state.paper_summary
+
+    st.markdown("#### 💾 导出笔记")
 
     if has_history or has_summary:
         md_content = f"# 论文研读笔记\n日期: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
@@ -90,7 +93,6 @@ with st.sidebar:
                 md_content += f"**{role}**: {msg['content']}\n\n"
 
         col_md, col_pdf = st.columns(2)
-
         with col_md:
             st.download_button(
                 label="⬇️ Markdown",
@@ -100,16 +102,13 @@ with st.sidebar:
                 use_container_width=True,
                 key="download_notes_md",
             )
-
         with col_pdf:
             if st.button("⬇️ PDF", key="btn_gen_pdf", use_container_width=True):
                 with st.spinner("正在生成 PDF..."):
-                    pdf_data = generate_pdf_content(
+                    st.session_state.tmp_pdf_data = generate_pdf_content(
                         st.session_state.paper_summary,
                         st.session_state.chat_history,
                     )
-                    st.session_state.tmp_pdf_data = pdf_data
-
             if "tmp_pdf_data" in st.session_state:
                 st.download_button(
                     label="点击保存 PDF",
