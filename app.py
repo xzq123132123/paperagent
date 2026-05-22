@@ -238,12 +238,6 @@ if st.session_state.raw_text and uploaded_file:
                 st.markdown('<div class="info-card">', unsafe_allow_html=True)
                 has_content = False
 
-                if st.session_state.paper_summary:
-                    st.markdown("### 📑 论文概览")
-                    st.markdown(st.session_state.paper_summary)
-                    st.divider()
-                    has_content = True
-
                 if st.session_state.analysis_result:
                     st.markdown("### 📚 核心术语表")
                     st.markdown(st.session_state.analysis_result)
@@ -259,8 +253,8 @@ if st.session_state.raw_text and uploaded_file:
                 if not has_content:
                     st.info(
                         "👈 这里是智能知识库。\n\n"
-                        "当你在右侧点击 **'提取核心术语'** 或在概览页生成 **'摘要'** 后，"
-                        "AI 提炼的干货会自动沉淀在这里，方便你随时查阅，无需翻找聊天记录。"
+                        "点击右侧的 **'提取核心术语'** 或 **'提取实验数据'**，"
+                        "AI 提炼的干货会自动沉淀在这里。"
                     )
 
                 st.markdown("</div>", unsafe_allow_html=True)
