@@ -129,6 +129,8 @@ if "analysis_result" not in st.session_state:
     st.session_state.analysis_result = None
 if "paper_summary" not in st.session_state:
     st.session_state.paper_summary = None
+if "experiment_data" not in st.session_state:
+    st.session_state.experiment_data = None
 if "current_file_id" not in st.session_state:
     st.session_state.current_file_id = None
 
@@ -248,6 +250,12 @@ if st.session_state.raw_text and uploaded_file:
                     st.divider()
                     has_content = True
 
+                if st.session_state.get("experiment_data"):
+                    st.markdown("### 📊 实验数据")
+                    st.markdown(st.session_state.experiment_data)
+                    st.divider()
+                    has_content = True
+
                 if not has_content:
                     st.info(
                         "👈 这里是智能知识库。\n\n"
@@ -293,11 +301,10 @@ if st.session_state.raw_text and uploaded_file:
                     )
                     with st.spinner("正在挖掘数据..."):
                         res_data = call_qwen(api_key, reader_level, prompt_data)
-                        st.session_state.chat_history.append({
-                            "role": "assistant",
-                            "content": f"📊 **实验数据提取结果**：\n\n{res_data}",
-                        })
-                        st.rerun()
+                        if res_data:
+                            st.session_state.experiment_data = res_data
+                            st.success("已提取！请查看左侧【🧠 知识库】面板")
+                            st.rerun()
 
             st.markdown("</div>", unsafe_allow_html=True)
 
