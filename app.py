@@ -37,7 +37,7 @@ with st.sidebar:
         type="password",
         help="阿里云百炼控制台获取",
         label_visibility="collapsed",
-        placeholder="粘贴你的 DashScope API Key",
+        placeholder="粘贴你的API",
     )
     st.markdown(
         '<p style="font-size:0.78rem;margin-top:-0.5rem;">'
