@@ -23,8 +23,6 @@ setup_page()
 if "theme" not in st.session_state:
     st.session_state.theme = "sci-fi"
 
-inject_css(st.session_state.theme)
-
 # ── Sidebar ─────────────────────────────────────────────────────
 with st.sidebar:
     st.title("⚙️ 助手设置")
@@ -55,9 +53,7 @@ with st.sidebar:
         "选择界面主题", THEME_CHOICES, index=cur_idx, label_visibility="collapsed",
     )
     new_theme = THEME_KEY_MAP[theme_display]
-    if new_theme != st.session_state.theme:
-        st.session_state.theme = new_theme
-        st.rerun()
+    st.session_state.theme = new_theme
 
     st.markdown("")
     reader_level = st.radio(
@@ -120,6 +116,9 @@ with st.sidebar:
                 )
     else:
         st.caption("暂无笔记内容可导出")
+
+# ── Inject CSS after sidebar (theme known) ─────────────────────
+inject_css(st.session_state.theme)
 
 # ── Session state init ──────────────────────────────────────────
 if "chat_history" not in st.session_state:
