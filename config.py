@@ -544,6 +544,150 @@ THEME_KEYS = list(THEMES.keys())
 THEME_CHOICES = [THEMES[k]["name"] for k in THEME_KEYS]
 THEME_KEY_MAP = {THEMES[k]["name"]: k for k in THEME_KEYS}  # display_name → key
 
+# ── Widget-level overrides (selectbox / file-uploader) ────────
+# These are applied after the theme CSS so they can use per-theme colors.
+
+_WIDGET_OVERRIDES = {
+    "sci-fi": """
+<style>
+    [data-baseweb="select"] [role="combobox"],
+    [data-baseweb="select"] > div {
+        background-color: #0a101f !important;
+        color: #00e5ff !important;
+        border: 1px solid rgba(0,229,255,0.25) !important;
+        border-radius: 4px !important;
+    }
+    [data-baseweb="popover"] { background-color: #0d1a33 !important; border: 1px solid rgba(0,229,255,0.3) !important; }
+    [data-baseweb="popover"] li, [data-baseweb="popover"] div { color: #b8c9dd !important; }
+    [data-baseweb="popover"] li:hover, [data-baseweb="popover"] [aria-selected="true"] {
+        background: rgba(0,229,255,0.12) !important; color: #00e5ff !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background: rgba(15,26,46,0.6) !important;
+        border: 1px dashed rgba(0,229,255,0.2) !important; border-radius: 6px !important;
+    }
+    [data-testid="stFileUploader"] section:hover { border-color: rgba(0,229,255,0.4) !important; }
+    [data-testid="stFileUploader"] p { color: #6b7d95 !important; }
+    [data-testid="stFileUploader"] span { color: #00e5ff !important; }
+    [data-testid="stFileUploader"] button {
+        background: rgba(0,229,255,0.12) !important; color: #00e5ff !important;
+        border: 1px solid rgba(0,229,255,0.3) !important; border-radius: 4px !important;
+    }
+    [data-testid="stFileUploader"] button:hover {
+        background: rgba(0,229,255,0.2) !important; border-color: #00e5ff !important;
+    }
+</style>
+""",
+    "academic": """
+<style>
+    [data-baseweb="select"] [role="combobox"],
+    [data-baseweb="select"] > div {
+        background-color: #fff !important; color: #333 !important;
+        border: 1px solid #d1d5db !important; border-radius: 6px !important;
+    }
+    [data-baseweb="popover"] { background-color: #fff !important; border: 1px solid #ddd !important; }
+    [data-baseweb="popover"] li, [data-baseweb="popover"] div { color: #333 !important; }
+    [data-baseweb="popover"] li:hover, [data-baseweb="popover"] [aria-selected="true"] {
+        background: rgba(52,152,219,0.1) !important; color: #1a5276 !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background: #f8f9fa !important;
+        border: 1px dashed #ccc !important; border-radius: 8px !important;
+    }
+    [data-testid="stFileUploader"] section:hover { border-color: #3498db !important; }
+    [data-testid="stFileUploader"] p { color: #888 !important; }
+    [data-testid="stFileUploader"] span { color: #3498db !important; }
+    [data-testid="stFileUploader"] button {
+        background: #fff !important; color: #3498db !important;
+        border: 1px solid #3498db !important; border-radius: 6px !important;
+    }
+    [data-testid="stFileUploader"] button:hover { background: #3498db !important; color: #fff !important; }
+</style>
+""",
+    "eye-care": """
+<style>
+    [data-baseweb="select"] [role="combobox"],
+    [data-baseweb="select"] > div {
+        background-color: #1c1810 !important; color: #e6d5a8 !important;
+        border: 1px solid rgba(255,179,71,0.25) !important; border-radius: 4px !important;
+    }
+    [data-baseweb="popover"] { background-color: #1c1810 !important; border: 1px solid rgba(255,179,71,0.3) !important; }
+    [data-baseweb="popover"] li, [data-baseweb="popover"] div { color: #c4b998 !important; }
+    [data-baseweb="popover"] li:hover, [data-baseweb="popover"] [aria-selected="true"] {
+        background: rgba(255,179,71,0.12) !important; color: #ffb347 !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background: rgba(28,24,16,0.6) !important;
+        border: 1px dashed rgba(255,179,71,0.2) !important; border-radius: 6px !important;
+    }
+    [data-testid="stFileUploader"] section:hover { border-color: rgba(255,179,71,0.4) !important; }
+    [data-testid="stFileUploader"] p { color: #8a7555 !important; }
+    [data-testid="stFileUploader"] span { color: #ffb347 !important; }
+    [data-testid="stFileUploader"] button {
+        background: rgba(255,179,71,0.12) !important; color: #ffb347 !important;
+        border: 1px solid rgba(255,179,71,0.3) !important; border-radius: 4px !important;
+    }
+    [data-testid="stFileUploader"] button:hover {
+        background: rgba(255,179,71,0.2) !important; border-color: #ffb347 !important;
+    }
+</style>
+""",
+    "minimal": """
+<style>
+    [data-baseweb="select"] [role="combobox"],
+    [data-baseweb="select"] > div {
+        background-color: #fff !important; color: #333 !important;
+        border: 1px solid #e0e0e0 !important; border-radius: 2px !important;
+    }
+    [data-baseweb="popover"] { background-color: #fff !important; border: 1px solid #eee !important; }
+    [data-baseweb="popover"] li, [data-baseweb="popover"] div { color: #444 !important; }
+    [data-baseweb="popover"] li:hover, [data-baseweb="popover"] [aria-selected="true"] {
+        background: #f5f5f5 !important; color: #111 !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background: #fafafa !important;
+        border: 1px dashed #ddd !important; border-radius: 4px !important;
+    }
+    [data-testid="stFileUploader"] section:hover { border-color: #999 !important; }
+    [data-testid="stFileUploader"] p { color: #888 !important; }
+    [data-testid="stFileUploader"] span { color: #555 !important; }
+    [data-testid="stFileUploader"] button {
+        background: #fff !important; color: #555 !important;
+        border: 1px solid #ccc !important; border-radius: 2px !important;
+    }
+    [data-testid="stFileUploader"] button:hover { background: #f5f5f5 !important; border-color: #999 !important; }
+</style>
+""",
+    "forest": """
+<style>
+    [data-baseweb="select"] [role="combobox"],
+    [data-baseweb="select"] > div {
+        background-color: #0c1c14 !important; color: #b8e6c0 !important;
+        border: 1px solid rgba(0,230,118,0.2) !important; border-radius: 4px !important;
+    }
+    [data-baseweb="popover"] { background-color: #0e1e16 !important; border: 1px solid rgba(0,230,118,0.3) !important; }
+    [data-baseweb="popover"] li, [data-baseweb="popover"] div { color: #a5b8a0 !important; }
+    [data-baseweb="popover"] li:hover, [data-baseweb="popover"] [aria-selected="true"] {
+        background: rgba(0,230,118,0.12) !important; color: #00e676 !important;
+    }
+    [data-testid="stFileUploader"] section {
+        background: rgba(14,30,22,0.6) !important;
+        border: 1px dashed rgba(0,230,118,0.2) !important; border-radius: 6px !important;
+    }
+    [data-testid="stFileUploader"] section:hover { border-color: rgba(0,230,118,0.4) !important; }
+    [data-testid="stFileUploader"] p { color: #4a6b55 !important; }
+    [data-testid="stFileUploader"] span { color: #00e676 !important; }
+    [data-testid="stFileUploader"] button {
+        background: rgba(0,230,118,0.12) !important; color: #00e676 !important;
+        border: 1px solid rgba(0,230,118,0.3) !important; border-radius: 4px !important;
+    }
+    [data-testid="stFileUploader"] button:hover {
+        background: rgba(0,230,118,0.2) !important; border-color: #00e676 !important;
+    }
+</style>
+""",
+}
+
 
 def inject_css(theme_name: str = "sci-fi"):
     """Inject CSS for the given theme. Falls back to sci-fi if unknown."""
@@ -552,6 +696,7 @@ def inject_css(theme_name: str = "sci-fi"):
 
     st.markdown(_BASE_CSS, unsafe_allow_html=True)
     st.markdown(THEMES[theme_name]["css"], unsafe_allow_html=True)
+    st.markdown(_WIDGET_OVERRIDES.get(theme_name, _WIDGET_OVERRIDES["sci-fi"]), unsafe_allow_html=True)
 
 
 def build_system_prompt(reader_level: str) -> str:
