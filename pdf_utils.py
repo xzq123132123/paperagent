@@ -37,22 +37,70 @@ def get_file_id(uploaded_file) -> str:
 # ── PDF rendering ──────────────────────────────────────────────
 
 def display_pdf(uploaded_file, height=800):
-    """Render PDF via pdf.js onto a canvas (no browser PDF plugin needed)."""
+    """Single-page fit-to-height PDF reader via pdf.js.
+
+    Scales each page to fully fit the container height without clipping.
+    Navigation buttons switch pages; no vertical scrollbar inside the viewer.
+    """
     if uploaded_file is None:
         return
 
     b64 = base64.b64encode(uploaded_file.getvalue()).decode("utf-8")
 
     html = f"""
-    <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
-      <button id="prev">⬅️ Prev</button>
-      <span>Page: <span id="page_num"></span> / <span id="page_count"></span></span>
-      <button id="next">Next ➡️</button>
+    <style>
+      #pdf-reader-outer {{
+        display: flex; flex-direction: column;
+        width: 100%; height: {height}px;
+        background: #0d1117; border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.08);
+        overflow: hidden;
+      }}
+      #pdf-reader-nav {{
+        display: flex; align-items: center; justify-content: center;
+        gap: 16px; padding: 10px 16px;
+        background: rgba(255,255,255,0.03);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        flex-shrink: 0;
+      }}
+      #pdf-reader-nav button {{
+        background: rgba(255,255,255,0.08); color: #c8d6e5;
+        border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+        padding: 6px 18px; cursor: pointer; font-size: 14px;
+        transition: all 0.2s;
+      }}
+      #pdf-reader-nav button:hover {{
+        background: rgba(255,255,255,0.16); color: #fff;
+      }}
+      #pdf-reader-nav button:disabled {{
+        opacity: 0.35; cursor: default;
+      }}
+      #pdf-reader-nav span {{
+        color: #8b949e; font-size: 14px; min-width: 100px; text-align: center;
+      }}
+      #pdf-reader-stage {{
+        flex: 1; display: flex; align-items: center; justify-content: center;
+        overflow: hidden; position: relative;
+      }}
+      #pdf-reader-stage canvas {{
+        box-shadow: 0 2px 20px rgba(0,0,0,0.5); border-radius: 2px;
+      }}
+    </style>
+
+    <div id="pdf-reader-outer">
+      <div id="pdf-reader-nav">
+        <button id="prev-btn">◀ 上一页</button>
+        <span><strong id="page-num">1</strong> / <span id="page-count">?</span></span>
+        <button id="next-btn">下一页 ▶</button>
+      </div>
+      <div id="pdf-reader-stage">
+        <canvas id="pdf-canvas"></canvas>
+      </div>
     </div>
-    <canvas id="the-canvas" style="width:100%; border:1px solid #ddd; border-radius:10px;"></canvas>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
+    (function() {{
       const b64 = "{b64}";
       const raw = atob(b64);
       const uint8Array = new Uint8Array(raw.length);
@@ -63,23 +111,35 @@ def display_pdf(uploaded_file, height=800):
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
       let pdfDoc = null, pageNum = 1, pageRendering = false, pageNumPending = null;
-      const canvas = document.getElementById('the-canvas');
+      const canvas = document.getElementById('pdf-canvas');
       const ctx = canvas.getContext('2d');
+      const stage = document.getElementById('pdf-reader-stage');
+      const btnPrev = document.getElementById('prev-btn');
+      const btnNext = document.getElementById('next-btn');
 
       function renderPage(num) {{
         pageRendering = true;
         pdfDoc.getPage(num).then(function(page) {{
-          const viewport = page.getViewport({{ scale: 1.5 }});
-          canvas.height = viewport.height;
+          const vp = page.getViewport({{ scale: 1 }});
+          const pw = vp.width, ph = vp.height;
+          const cw = stage.clientWidth, ch = stage.clientHeight;
+
+          const scale = Math.min(
+            (cw - 24) / pw,
+            (ch - 16) / ph
+          );
+
+          const viewport = page.getViewport({{ scale: scale }});
           canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = viewport.width + 'px';
+          canvas.style.height = viewport.height + 'px';
 
-          const renderContext = {{ canvasContext: ctx, viewport: viewport }};
-          const renderTask = page.render(renderContext);
-
-          renderTask.promise.then(function() {{
+          page.render({{ canvasContext: ctx, viewport: viewport }}).promise.then(function() {{
             pageRendering = false;
-            document.getElementById('page_num').textContent = pageNum;
-
+            document.getElementById('page-num').textContent = pageNum;
+            btnPrev.disabled = (pageNum <= 1);
+            btnNext.disabled = (pageNum >= pdfDoc.numPages);
             if (pageNumPending !== null) {{
               renderPage(pageNumPending);
               pageNumPending = null;
@@ -89,35 +149,52 @@ def display_pdf(uploaded_file, height=800):
       }}
 
       function queueRenderPage(num) {{
-        if (pageRendering) {{
-          pageNumPending = num;
-        }} else {{
-          renderPage(num);
-        }}
+        if (pageRendering) {{ pageNumPending = num; }}
+        else {{ renderPage(num); }}
       }}
 
-      document.getElementById('prev').addEventListener('click', function() {{
+      btnPrev.addEventListener('click', function() {{
         if (pageNum <= 1) return;
         pageNum--;
         queueRenderPage(pageNum);
       }});
-
-      document.getElementById('next').addEventListener('click', function() {{
+      btnNext.addEventListener('click', function() {{
         if (pageNum >= pdfDoc.numPages) return;
         pageNum++;
         queueRenderPage(pageNum);
       }});
 
-      pdfjsLib.getDocument({{ data: uint8Array }}).promise.then(function(pdfDoc_) {{
-        pdfDoc = pdfDoc_;
-        document.getElementById('page_count').textContent = pdfDoc.numPages;
-        document.getElementById('page_num').textContent = pageNum;
+      // Keyboard navigation
+      document.addEventListener('keydown', function(e) {{
+        if (e.key === 'ArrowLeft') {{ btnPrev.click(); }}
+        if (e.key === 'ArrowRight') {{ btnNext.click(); }}
+      }});
+
+      // Re-render on resize
+      let resizeTimer;
+      window.addEventListener('resize', function() {{
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function() {{ renderPage(pageNum); }}, 200);
+      }});
+
+      // Also observe stage size changes (tab switch etc.)
+      if (window.ResizeObserver) {{
+        new ResizeObserver(function() {{
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(function() {{ renderPage(pageNum); }}, 150);
+        }}).observe(stage);
+      }}
+
+      pdfjsLib.getDocument({{ data: uint8Array }}).promise.then(function(doc) {{
+        pdfDoc = doc;
+        document.getElementById('page-count').textContent = pdfDoc.numPages;
         renderPage(pageNum);
       }});
+    }})();
     </script>
     """
 
-    components.html(html, height=height, scrolling=True)
+    components.html(html, height=height + 52, scrolling=False)
 
 
 def display_pdf_selectable(uploaded_file, height=700):

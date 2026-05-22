@@ -231,7 +231,7 @@ if st.session_state.raw_text and uploaded_file:
                     mime="application/pdf",
                     key="download_pdf_tab1",
                 )
-                display_pdf(uploaded_file)
+                display_pdf(uploaded_file, height=620)
 
             with left_tab2:
                 st.markdown('<div class="info-card">', unsafe_allow_html=True)
@@ -373,7 +373,7 @@ if st.session_state.raw_text and uploaded_file:
         with col_left:
             if source_mode and uploaded_file:
                 st.markdown("**📖 论文原文**")
-                display_pdf(uploaded_file, height=820)
+                display_pdf(uploaded_file, height=800)
 
                 st.download_button(
                     "📥 下载 PDF 到本地",
