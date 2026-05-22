@@ -10,7 +10,6 @@ from pdf_utils import (
     extract_text_from_pdf,
     get_file_id,
     display_pdf,
-    display_pdf_selectable,
     generate_pdf_content,
 )
 from llm_utils import call_qwen
@@ -373,46 +372,17 @@ if st.session_state.raw_text and uploaded_file:
 
         with col_left:
             if source_mode and uploaded_file:
-                st.markdown("**📖 论文原文 (保留排版，请直接划词复制)**")
+                st.markdown("**📖 论文原文（可使用下方按钮翻页、复制文字）**")
+                display_pdf(uploaded_file, height=650)
+
                 st.download_button(
-                    "📥 下载 PDF",
+                    "📥 下载 PDF 到本地",
                     data=uploaded_file.getvalue(),
                     file_name=uploaded_file.name,
                     mime="application/pdf",
                     key="download_pdf_tab2",
+                    use_container_width=True,
                 )
-                display_pdf_selectable(uploaded_file, height=700)
-
-                if "page_num" not in st.session_state:
-                    st.session_state.page_num = 0
-
-                c1, c2, c3 = st.columns([1, 1, 2])
-                with c1:
-                    if st.button("Prev Page"):
-                        st.session_state.page_num = max(
-                            0, st.session_state.page_num - 1
-                        )
-                with c2:
-                    if st.button("Next Page"):
-                        st.session_state.page_num = (
-                            st.session_state.page_num + 1
-                        )
-                with c3:
-                    st.write(f"当前页: {st.session_state.page_num + 1}")
-
-                if st.button("🔎 OCR 当前页（可复制）"):
-                    with st.spinner("正在 OCR..."):
-                        placeholder_text = (
-                            f"这是第 {st.session_state.page_num + 1} 页的OCR结果示例。\n\n"
-                            f"在实际环境中，这里会显示从PDF页面识别出的真实文本。\n\n"
-                            f"要启用完整的OCR功能，请安装以下依赖：\n"
-                            f"1. pip install pytesseract pdf2image Pillow\n"
-                            f"2. 安装Tesseract OCR引擎\n"
-                            f"3. 安装Poppler（用于PDF转图像）\n\n"
-                            f"安装完成后，请取消注释代码中的OCR相关函数。"
-                        )
-                        st.session_state.input_clip = placeholder_text
-                        st.success('OCR 完成：已自动填入待处理片段，可直接点击「立即执行」翻译。')
             else:
                 st.markdown("**📄 自由粘贴区 (无 PDF 时使用)**")
                 st.text_area(
